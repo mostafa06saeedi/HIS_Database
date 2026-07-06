@@ -559,3 +559,259 @@ ALTER TABLE [invoice]
 ALTER TABLE [invoice]
   ADD CONSTRAINT [FK_invoice_appointment]
   FOREIGN KEY ([appointmentID]) REFERENCES [appointment] ([id])
+
+ALTER TABLE [labalert]
+  ADD CONSTRAINT [FK_labalert_labresult]
+  FOREIGN KEY ([labResultID]) REFERENCES [labresult] ([id])
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [FK_prescription_patient]
+  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [FK_prescription_employee]
+  FOREIGN KEY ([employeeID]) REFERENCES [employee] ([id])
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [FK_prescription_appointment]
+  FOREIGN KEY ([appointmentID]) REFERENCES [appointment] ([id])
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [FK_prescription_admission]
+  FOREIGN KEY ([admissionID]) REFERENCES [admission] ([id])
+
+ALTER TABLE [prescriptionitem]
+  ADD CONSTRAINT [FK_prescriptionitem_prescription]
+  FOREIGN KEY ([prescriptionID]) REFERENCES [prescription] ([id])
+
+ALTER TABLE [prescriptionitem]
+  ADD CONSTRAINT [FK_prescriptionitem_drug]
+  FOREIGN KEY ([drugID]) REFERENCES [drug] ([id])
+
+ALTER TABLE [storage_transaction]
+  ADD CONSTRAINT [FK_storage_transaction_drug]
+  FOREIGN KEY ([drugID]) REFERENCES [drug] ([id])
+
+ALTER TABLE [storage_transaction]
+  ADD CONSTRAINT [FK_storage_transaction_storage]
+  FOREIGN KEY ([storageID]) REFERENCES [storage] ([id])
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [FK_invoice_patient]
+  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [FK_invoice_admission]
+  FOREIGN KEY ([admissionID]) REFERENCES [admission] ([id])
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [FK_invoice_appointment]
+  FOREIGN KEY ([appointmentID]) REFERENCES [appointment] ([id])
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [FK_invoice_insurance]
+  FOREIGN KEY ([insuranceId]) REFERENCES [insurance] ([id])
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [FK_invoice_paymentmethod]
+  FOREIGN KEY ([paymentmethodID]) REFERENCES [paymentmethod] ([id])
+
+ALTER TABLE [invoiceitem]
+  ADD CONSTRAINT [FK_invoiceitem_invoice]
+  FOREIGN KEY ([invoiceID]) REFERENCES [invoice] ([id])
+
+ALTER TABLE [devicetransfer]
+  ADD CONSTRAINT [FK_devicetransfer_patient]
+  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
+
+ALTER TABLE [devicetransfer]
+  ADD CONSTRAINT [FK_devicetransfer_admission]
+  FOREIGN KEY ([admissionID]) REFERENCES [admission] ([id])
+
+ALTER TABLE [devicetransfer]
+  ADD CONSTRAINT [FK_devicetransfer_department]
+  FOREIGN KEY ([departmentID]) REFERENCES [department] ([id])
+
+ALTER TABLE [devicetransfer]
+  ADD CONSTRAINT [FK_devicetransfer_bed]
+  FOREIGN KEY ([bedID]) REFERENCES [bed] ([id])
+
+ALTER TABLE [devicetransfer]
+  ADD CONSTRAINT [FK_devicetransfer_iotdevice]
+  FOREIGN KEY ([iotdeviceID]) REFERENCES [iotdevice] ([id])
+
+ALTER TABLE [logs]
+  ADD CONSTRAINT [FK_logs_iotdevice]
+  FOREIGN KEY ([deviceID]) REFERENCES [iotdevice] ([id])
+
+ALTER TABLE [alert]
+  ADD CONSTRAINT [FK_alert_logs]
+  FOREIGN KEY ([logID]) REFERENCES [logs] ([id])
+
+ALTER TABLE [alert]
+  ADD CONSTRAINT [FK_alert_AlertThreshold]
+  FOREIGN KEY ([alertThresholdID]) REFERENCES [AlertThreshold] ([id])
+
+ALTER TABLE [alert]
+  ADD CONSTRAINT [FK_alert_employee]
+  FOREIGN KEY ([acknowledgedbyemployeeID]) REFERENCES [employee] ([id])
+
+ALTER TABLE [AlertThreshold]
+  ADD CONSTRAINT [FK_AlertThreshold_employee]
+  FOREIGN KEY ([employeeID]) REFERENCES [employee] ([id])
+
+ALTER TABLE [AlertThreshold]
+  ADD CONSTRAINT [FK_AlertThreshold_patient]
+  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
+
+
+ALTER TABLE [insurance]        ADD CONSTRAINT [DF_insurance_isActive]        DEFAULT (1)              FOR [isActive]
+ALTER TABLE [AlertThreshold]   ADD CONSTRAINT [DF_AlertThreshold_isGlobal]   DEFAULT (1)              FOR [isGlobal]
+ALTER TABLE [AlertThreshold]   ADD CONSTRAINT [DF_AlertThreshold_createdate] DEFAULT (GETDATE())      FOR [createdate]
+ALTER TABLE [appointment]      ADD CONSTRAINT [DF_appointment_status]       DEFAULT (N'Scheduled')   FOR [status]
+ALTER TABLE [bed]              ADD CONSTRAINT [DF_bed_status]               DEFAULT (N'Free')        FOR [status]
+ALTER TABLE [prescription]     ADD CONSTRAINT [DF_prescription_status]      DEFAULT (N'Pending')     FOR [status]
+ALTER TABLE [prescription]     ADD CONSTRAINT [DF_prescription_date]        DEFAULT (GETDATE())      FOR [date]
+ALTER TABLE [invoice]          ADD CONSTRAINT [DF_invoice_status]           DEFAULT (N'Unpaid')      FOR [status]
+ALTER TABLE [invoice]          ADD CONSTRAINT [DF_invoice_date]             DEFAULT (GETDATE())      FOR [date]
+ALTER TABLE [invoice]          ADD CONSTRAINT [DF_invoice_total]            DEFAULT (0)              FOR [total_amount]
+ALTER TABLE [storage]          ADD CONSTRAINT [DF_storage_inventory]        DEFAULT (0)              FOR [inventory]
+ALTER TABLE [storage_transaction] ADD CONSTRAINT [DF_storagetransaction_date] DEFAULT (GETDATE())    FOR [date]
+ALTER TABLE [iotdevice]        ADD CONSTRAINT [DF_iotdevice_status]         DEFAULT (N'Active')      FOR [status]
+ALTER TABLE [iotdevice]        ADD CONSTRAINT [DF_iotdevice_installdate]    DEFAULT (GETDATE())      FOR [installationdate]
+ALTER TABLE [logs]             ADD CONSTRAINT [DF_logs_timestamp]           DEFAULT (GETDATE())      FOR [timestamp]
+ALTER TABLE [alert]            ADD CONSTRAINT [DF_alert_status]             DEFAULT (N'Unreviewed')  FOR [status]
+ALTER TABLE [alert]            ADD CONSTRAINT [DF_alert_createdtime]        DEFAULT (GETDATE())      FOR [createdtime]
+ALTER TABLE [labalert]         ADD CONSTRAINT [DF_labalert_status]          DEFAULT (N'Unreviewed')  FOR [status]
+ALTER TABLE [labalert]         ADD CONSTRAINT [DF_labalert_createdAt]       DEFAULT (GETDATE())      FOR [createdAt]
+ALTER TABLE [Labimagingrequest] ADD CONSTRAINT [DF_Labimagingrequest_status] DEFAULT (N'Requested')  FOR [status]
+ALTER TABLE [Labimagingrequest] ADD CONSTRAINT [DF_Labimagingrequest_date]  DEFAULT (GETDATE())      FOR [date]
+ALTER TABLE [labresult]        ADD CONSTRAINT [DF_labresult_status]         DEFAULT (N'Pending')     FOR [status]
+ALTER TABLE [labresult]        ADD CONSTRAINT [DF_labresult_date]           DEFAULT (GETDATE())      FOR [date]
+ALTER TABLE [admission]        ADD CONSTRAINT [DF_admission_entrydate]      DEFAULT (GETDATE())      FOR [entrydate]
+
+
+ALTER TABLE [patient]
+  ADD CONSTRAINT [CK_patient_gender] CHECK ([gender] IN (N'Male', N'Female') OR [gender] IS NULL)
+
+ALTER TABLE [bed]
+  ADD CONSTRAINT [CK_bed_status] CHECK ([status] IN (N'Free', N'Reserved', N'Occupied'))
+
+ALTER TABLE [admission]
+  ADD CONSTRAINT [CK_admission_dates] CHECK ([exitdate] IS NULL OR [exitdate] >= [entrydate])
+
+ALTER TABLE [appointment]
+  ADD CONSTRAINT [CK_appointment_status] CHECK ([status] IN (N'Scheduled', N'Completed', N'Cancelled', N'Rescheduled'))
+
+ALTER TABLE [appointment]
+  ADD CONSTRAINT [CK_appointment_type] CHECK ([appointment_type] IN (N'InPerson', N'Online') OR [appointment_type] IS NULL)
+
+ALTER TABLE [doctordiagnosis]
+  ADD CONSTRAINT [CK_doctordiagnosis_source] CHECK ([appointmentID] IS NOT NULL OR [admissionID] IS NOT NULL)
+
+ALTER TABLE [Labimagingrequest]
+  ADD CONSTRAINT [CK_Labimagingrequest_type] CHECK ([type] IN (N'Lab', N'Imaging'))
+
+ALTER TABLE [Labimagingrequest]
+  ADD CONSTRAINT [CK_Labimagingrequest_status] CHECK ([status] IN (N'Requested', N'InProgress', N'Completed'))
+
+ALTER TABLE [Labimagingrequest]
+  ADD CONSTRAINT [CK_Labimagingrequest_source] CHECK ([appointmentID] IS NOT NULL OR [admissionID] IS NOT NULL)
+
+ALTER TABLE [labresult]
+  ADD CONSTRAINT [CK_labresult_status] CHECK ([status] IN (N'Pending', N'Completed'))
+
+ALTER TABLE [labalert]
+  ADD CONSTRAINT [CK_labalert_severity] CHECK ([severity] IN (N'Normal', N'Moderate', N'Critical'))
+
+ALTER TABLE [labalert]
+  ADD CONSTRAINT [CK_labalert_status] CHECK ([status] IN (N'Unreviewed', N'ConfirmedByNurse', N'Resolved'))
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [CK_prescription_status] CHECK ([status] IN (N'Pending', N'Dispensed', N'Cancelled'))
+
+ALTER TABLE [prescription]
+  ADD CONSTRAINT [CK_prescription_source] CHECK ([appointmentID] IS NOT NULL OR [admissionID] IS NOT NULL)
+
+ALTER TABLE [prescriptionitem]
+  ADD CONSTRAINT [CK_prescriptionitem_quantity] CHECK ([quantity] > 0)
+
+ALTER TABLE [storage_transaction]
+  ADD CONSTRAINT [CK_storagetransaction_type] CHECK ([type] IN (N'IN', N'OUT'))
+
+ALTER TABLE [storage_transaction]
+  ADD CONSTRAINT [CK_storagetransaction_quantity] CHECK ([quantity] > 0)
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [CK_invoice_status] CHECK ([status] IN (N'Unpaid', N'PartiallyPaid', N'Paid'))
+
+ALTER TABLE [invoice]
+  ADD CONSTRAINT [CK_invoice_source] CHECK ([admissionID] IS NOT NULL OR [appointmentID] IS NOT NULL)
+
+ALTER TABLE [iotdevice]
+  ADD CONSTRAINT [CK_iotdevice_status] CHECK ([status] IN (N'Active', N'Inactive', N'UnderMaintenance'))
+
+ALTER TABLE [alert]
+  ADD CONSTRAINT [CK_alert_severity] CHECK ([severity] IN (N'Normal', N'Moderate', N'Critical'))
+
+ALTER TABLE [alert]
+  ADD CONSTRAINT [CK_alert_status] CHECK ([status] IN (N'Unreviewed', N'ConfirmedByNurse', N'Resolved'))
+
+ALTER TABLE [AlertThreshold]
+  ADD CONSTRAINT [CK_AlertThreshold_severity] CHECK ([severity] IN (N'Normal', N'Moderate', N'Critical'))
+
+ALTER TABLE [AlertThreshold]
+  ADD CONSTRAINT [CK_AlertThreshold_range] CHECK ([maxValue] IS NULL OR [minValue] IS NULL OR [maxValue] >= [minValue])
+
+
+ALTER TABLE [patient]            ALTER COLUMN [name]        nvarchar(255) NOT NULL
+ALTER TABLE [employee]           ALTER COLUMN [name]        nvarchar(255) NOT NULL
+ALTER TABLE [drug]               ALTER COLUMN [name]        nvarchar(255) NOT NULL
+ALTER TABLE [appointment]        ALTER COLUMN [patientID]   nvarchar(255) NOT NULL
+ALTER TABLE [admission]          ALTER COLUMN [patientID]   nvarchar(255) NOT NULL
+ALTER TABLE [admission]          ALTER COLUMN [bedID]       int NOT NULL
+ALTER TABLE [invoice]            ALTER COLUMN [patientID]   nvarchar(255) NOT NULL
+ALTER TABLE [iotdevice]          ALTER COLUMN [macaddress]  nvarchar(255) NOT NULL
+ALTER TABLE [logs]               ALTER COLUMN [deviceID]    int NOT NULL
+ALTER TABLE [logs]               ALTER COLUMN [type]        nvarchar(255) NOT NULL
+ALTER TABLE [logs]               ALTER COLUMN [value]       float NOT NULL
+
+
+ALTER TABLE [iotdevice]
+  ADD CONSTRAINT [UQ_iotdevice_macaddress] UNIQUE ([macaddress])
+
+ALTER TABLE [icddisease]
+  ADD CONSTRAINT [UQ_icddisease_code] UNIQUE ([code])
+
+ALTER TABLE [employeeshift]
+  ADD CONSTRAINT [UQ_employeeshift_pair] UNIQUE ([employeeID], [shiftID])
+
+
+CREATE INDEX [IX_patient_insuranceID]            ON [patient] ([insuranceID])
+CREATE INDEX [IX_appointment_patientID]          ON [appointment] ([patientID])
+CREATE INDEX [IX_appointment_employeeID]         ON [appointment] ([employeeID])
+CREATE INDEX [IX_appointment_departmentID]       ON [appointment] ([departmentID])
+CREATE INDEX [IX_appointment_date_time]          ON [appointment] ([date], [time])
+CREATE INDEX [IX_admission_patientID]            ON [admission] ([patientID])
+CREATE INDEX [IX_admission_bedID]                ON [admission] ([bedID])
+CREATE INDEX [IX_admission_employeeID]           ON [admission] ([employeeID])
+CREATE INDEX [IX_bed_departmentID]               ON [bed] ([departmentID])
+CREATE INDEX [IX_patienttransfer_admissionID]    ON [patienttransfer] ([admissionID])
+CREATE INDEX [IX_Labimagingrequest_appointmentID] ON [Labimagingrequest] ([appointmentID])
+CREATE INDEX [IX_Labimagingrequest_admissionID]  ON [Labimagingrequest] ([admissionID])
+CREATE INDEX [IX_labresult_LabimagingrequestID]  ON [labresult] ([LabimagingrequestID])
+CREATE INDEX [IX_labresult_isCritical]           ON [labresult] ([isCritical])
+CREATE INDEX [IX_prescription_patientID]         ON [prescription] ([patientID])
+CREATE INDEX [IX_prescriptionitem_prescriptionID] ON [prescriptionitem] ([prescriptionID])
+CREATE INDEX [IX_prescriptionitem_drugID]        ON [prescriptionitem] ([drugID])
+CREATE INDEX [IX_storage_transaction_drugID]     ON [storage_transaction] ([drugID])
+CREATE INDEX [IX_storage_transaction_storageID]  ON [storage_transaction] ([storageID])
+CREATE INDEX [IX_invoice_patientID]              ON [invoice] ([patientID])
+CREATE INDEX [IX_invoiceitem_invoiceID]          ON [invoiceitem] ([invoiceID])
+CREATE INDEX [IX_payment_invoiceID]              ON [payment] ([invoiceID])
+CREATE INDEX [IX_devicetransfer_iotdeviceID]     ON [devicetransfer] ([iotdeviceID])
+CREATE INDEX [IX_devicetransfer_patientID]       ON [devicetransfer] ([patientID])
+CREATE INDEX [IX_logs_deviceID_timestamp]        ON [logs] ([deviceID], [timestamp])
+CREATE INDEX [IX_alert_logID]                    ON [alert] ([logID])
+CREATE INDEX [IX_AlertThreshold_measurementType]  ON [AlertThreshold] ([measurementType])
+
