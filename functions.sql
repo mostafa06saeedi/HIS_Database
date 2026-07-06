@@ -11,6 +11,7 @@ BEGIN
 
   RETURN @age
 END
+GO
 
 CREATE FUNCTION [fn_IsBedAvailable] (@bedID int)
 RETURNS bit
@@ -21,6 +22,7 @@ BEGIN
     SET @result = 1
   RETURN @result
 END
+GO
 
 CREATE FUNCTION [fn_GetAvailableBeds] (@departmentID int = NULL)
 RETURNS TABLE
@@ -33,6 +35,7 @@ RETURN
   WHERE [b].[status] = N'Free'
     AND (@departmentID IS NULL OR [b].[departmentID] = @departmentID)
 )
+GO
 
 CREATE FUNCTION [fn_GetPatientActiveAdmission] (@patientID nvarchar(255))
 RETURNS int
@@ -46,6 +49,7 @@ BEGIN
 
   RETURN @admissionID
 END
+GO
 
 CREATE FUNCTION [fn_GetPatientCurrentBed] (@admissionID int)
 RETURNS int
@@ -63,6 +67,7 @@ BEGIN
 
   RETURN @bedID
 END
+GO
 
 CREATE FUNCTION [fn_CalculateInvoiceTotal] (@invoiceID int)
 RETURNS float
@@ -75,6 +80,7 @@ BEGIN
 
   RETURN @total
 END
+GO
 
 CREATE FUNCTION [fn_CalculateInsuranceShare] (@invoiceID int)
 RETURNS TABLE
@@ -93,6 +99,7 @@ RETURN
     ON [ins].[id] = [p].[insuranceID] AND [ins].[isActive] = 1
   WHERE [inv].[id] = @invoiceID
 )
+GO
 
 CREATE FUNCTION [fn_GetPatientDrugHistory] (@patientID nvarchar(255))
 RETURNS TABLE
@@ -115,6 +122,7 @@ RETURN
   LEFT JOIN [employee] AS [e] ON [e].[id] = [pr].[employeeID]
   WHERE [pr].[patientID] = @patientID
 )
+GO
 
 CREATE FUNCTION [fn_CheckDrugInteraction] (@drugID1 int, @drugID2 int)
 RETURNS nvarchar(50)
@@ -128,6 +136,7 @@ BEGIN
 
   RETURN @severity
 END
+GO
 
 CREATE FUNCTION [fn_GetCurrentDeviceLocation] (@iotdeviceID int)
 RETURNS TABLE
@@ -145,6 +154,7 @@ RETURN
   WHERE [dt].[iotdeviceID] = @iotdeviceID AND [dt].[unassignedAt] IS NULL
   ORDER BY [dt].[assignedAt] DESC
 )
+GO
 
 CREATE FUNCTION [fn_IsValueCritical]
 (
@@ -172,6 +182,7 @@ BEGIN
 
   RETURN @result
 END
+GO
 
 CREATE FUNCTION [fn_GetDepartmentBedStats] ()
 RETURNS TABLE
@@ -194,6 +205,7 @@ RETURN
   LEFT JOIN [bed] AS [b] ON [b].[departmentID] = [d].[id]
   GROUP BY [d].[id], [d].[name], [d].[type]
 )
+GO
 
 CREATE FUNCTION [fn_CountActiveAdmissions] (@departmentID int = NULL)
 RETURNS int
@@ -209,6 +221,7 @@ BEGIN
 
   RETURN @cnt
 END
+GO
 
 CREATE FUNCTION [fn_CurrentSessionRole] ()
 RETURNS nvarchar(50)
@@ -216,6 +229,7 @@ AS
 BEGIN
   RETURN CAST(SESSION_CONTEXT(N'Role') AS nvarchar(50))
 END
+GO
 
 CREATE FUNCTION [fn_CurrentSessionPatientID] ()
 RETURNS nvarchar(255)
@@ -223,6 +237,7 @@ AS
 BEGIN
   RETURN CAST(SESSION_CONTEXT(N'PatientID') AS nvarchar(255))
 END
+GO
 
 CREATE FUNCTION [fn_CurrentSessionEmployeeID] ()
 RETURNS int
@@ -230,3 +245,4 @@ AS
 BEGIN
   RETURN CAST(SESSION_CONTEXT(N'EmployeeID') AS int)
 END
+GO
