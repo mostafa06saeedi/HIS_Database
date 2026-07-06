@@ -52,3 +52,34 @@ LEFT JOIN [appointment] AS [ap] ON [ap].[id] = [req].[appointmentID]
 LEFT JOIN [admission]   AS [ad] ON [ad].[id] = [req].[admissionID]
 WHERE [dbo].[fn_CurrentSessionPatientID]() IN (ISNULL([ap].[patientID], N''), ISNULL([ad].[patientID], N''))
 GO
+
+CREATE VIEW [vw_MyPrescriptions] AS
+SELECT
+  [pr].[id]        AS prescriptionID,
+  [pr].[date],
+  [pr].[status],
+  [dg].[name]      AS drugName,
+  [pi].[dose],
+  [pi].[duration],
+  [pi].[quantity],
+  [e].[name]       AS prescribedBy
+FROM [prescription] AS [pr]
+INNER JOIN [prescriptionitem] AS [pi] ON [pi].[prescriptionID] = [pr].[id]
+INNER JOIN [drug] AS [dg] ON [dg].[id] = [pi].[drugID]
+INNER JOIN [employee] AS [e] ON [e].[id] = [pr].[employeeID]
+WHERE [pr].[patientID] = [dbo].[fn_CurrentSessionPatientID]()
+GO
+
+CREATE VIEW [vw_MyInvoices] AS
+SELECT
+  [inv].[id]              AS invoiceID,
+  [inv].[date],
+  [inv].[total_amount],
+  [inv].[insuranceAmount],
+  [inv].[patientAmount],
+  [inv].[paidAmount],
+  [inv].[patientAmount] - [inv].[paidAmount] AS remainingBalance,
+  [inv].[status]
+FROM [invoice] AS [inv]
+WHERE [inv].[patientID] = [dbo].[fn_CurrentSessionPatientID]()
+GO
