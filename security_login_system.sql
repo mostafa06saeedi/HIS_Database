@@ -164,3 +164,88 @@ BEGIN
   WHERE [username] = @username
 END
 GO
+
+CREATE ROLE [role_Patient]
+CREATE ROLE [role_Doctor]
+CREATE ROLE [role_Nurse]
+CREATE ROLE [role_Pharmacist]
+CREATE ROLE [role_LabTech]
+CREATE ROLE [role_Reception]
+CREATE ROLE [role_Manager]
+GO
+
+GRANT EXECUTE ON [sp_Login]          TO PUBLIC
+GRANT EXECUTE ON [sp_Logout]         TO PUBLIC
+GRANT EXECUTE ON [sp_ChangePassword] TO PUBLIC
+GO
+
+GRANT SELECT  ON [vw_MyProfile]        TO [role_Patient]
+GRANT SELECT  ON [vw_MyMedicalRecord]  TO [role_Patient]
+GRANT SELECT  ON [vw_MyAppointments]   TO [role_Patient]
+GRANT SELECT  ON [vw_MyAdmissions]     TO [role_Patient]
+GRANT SELECT  ON [vw_MyLabResults]     TO [role_Patient]
+GRANT SELECT  ON [vw_MyPrescriptions]  TO [role_Patient]
+GRANT SELECT  ON [vw_MyInvoices]       TO [role_Patient]
+GRANT EXECUTE ON [sp_BookAppointment]  TO [role_Patient]
+GRANT EXECUTE ON [sp_CancelAppointment] TO [role_Patient]
+GO
+
+GRANT SELECT  ON [vw_DoctorMyAppointments]      TO [role_Doctor]
+GRANT SELECT  ON [vw_DoctorMyAdmittedPatients]  TO [role_Doctor]
+GRANT SELECT  ON [vw_DoctorPendingLabResults]   TO [role_Doctor]
+GRANT SELECT  ON [vw_DoctorPatientHistory]      TO [role_Doctor]
+GRANT EXECUTE ON [sp_AddDoctorDiagnosis]        TO [role_Doctor]
+GRANT EXECUTE ON [sp_RequestLabImaging]         TO [role_Doctor]
+GRANT EXECUTE ON [sp_IssuePrescription]         TO [role_Doctor]
+GRANT EXECUTE ON [sp_AddPrescriptionItem]       TO [role_Doctor]
+GRANT EXECUTE ON [sp_AcknowledgeLabAlert]       TO [role_Doctor]
+GRANT EXECUTE ON [sp_ResolveLabAlert]           TO [role_Doctor]
+GRANT EXECUTE ON [sp_AdmitPatient]              TO [role_Doctor]
+GRANT EXECUTE ON [sp_TransferPatient]           TO [role_Doctor]
+GRANT EXECUTE ON [sp_DischargePatient]          TO [role_Doctor]
+GO
+
+GRANT SELECT  ON [vw_NurseActiveAlerts] TO [role_Nurse]
+GRANT SELECT  ON [vw_NurseWardPatients] TO [role_Nurse]
+GRANT EXECUTE ON [sp_AcknowledgeAlert]  TO [role_Nurse]
+GRANT EXECUTE ON [sp_ResolveAlert]      TO [role_Nurse]
+GRANT EXECUTE ON [sp_RecordDeviceLog]   TO [role_Nurse]
+GO
+
+GRANT SELECT  ON [vw_PharmacyPendingPrescriptions] TO [role_Pharmacist]
+GRANT EXECUTE ON [sp_DispenseMedication]           TO [role_Pharmacist]
+GRANT EXECUTE ON [sp_ReceiveStock]                 TO [role_Pharmacist]
+GRANT EXECUTE ON [sp_AddDrugInteraction]           TO [role_Pharmacist]
+GO
+
+GRANT SELECT  ON [vw_LabPendingRequests] TO [role_LabTech]
+GRANT EXECUTE ON [sp_RecordLabResult]    TO [role_LabTech]
+GO
+
+GRANT SELECT  ON [vw_ReceptionTodayAppointments] TO [role_Reception]
+GRANT SELECT  ON [vw_DepartmentBedCapacity]      TO [role_Reception]
+GRANT SELECT  ON [vw_CurrentAdmissions]          TO [role_Reception]
+GRANT EXECUTE ON [sp_RegisterPatient]            TO [role_Reception]
+GRANT EXECUTE ON [sp_RegisterPatientLogin]       TO [role_Reception]
+GRANT EXECUTE ON [sp_BookAppointment]            TO [role_Reception]
+GRANT EXECUTE ON [sp_RescheduleAppointment]      TO [role_Reception]
+GRANT EXECUTE ON [sp_AdmitPatient]               TO [role_Reception]
+GRANT EXECUTE ON [sp_DischargePatient]           TO [role_Reception]
+GRANT EXECUTE ON [sp_TransferPatient]            TO [role_Reception]
+GRANT EXECUTE ON [sp_CreateInvoice]              TO [role_Reception]
+GRANT EXECUTE ON [sp_AddInvoiceItem]             TO [role_Reception]
+GRANT EXECUTE ON [sp_RecordPayment]              TO [role_Reception]
+GO
+
+GRANT SELECT ON [vw_ManagerDepartmentReport] TO [role_Manager]
+GRANT SELECT ON [vw_DepartmentBedCapacity]   TO [role_Manager]
+GRANT SELECT ON [vw_CurrentAdmissions]       TO [role_Manager]
+GO
+
+DENY SELECT ON [patient]        TO [role_Patient]
+DENY SELECT ON [medicalrecord]  TO [role_Patient]
+DENY SELECT ON [labresult]      TO [role_Patient]
+DENY SELECT ON [invoice]        TO [role_Patient]
+DENY SELECT ON [admission]      TO [role_Patient]
+DENY SELECT ON [prescription]   TO [role_Patient]
+GO
