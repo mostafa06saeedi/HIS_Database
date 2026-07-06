@@ -17,7 +17,7 @@ CREATE TABLE [medicalrecord] (
   [weight]           float         NULL,
   [height]           float         NULL,
   [bloodpressure]    nvarchar(255) NULL,
-  [smokingHistory]   nvarchar(255) NULL,
+  [smokingHistory]   nvarchar(255) NULL, 
   CONSTRAINT [PK_medicalrecord] PRIMARY KEY ([id]),
   CONSTRAINT [UQ_medicalrecord_patientID] UNIQUE ([patientID])
 )
@@ -67,7 +67,7 @@ CREATE TABLE [employee] (
 )
 
 CREATE TABLE [doctor] (
-  [employeeID]      int           NOT NULL,
+  [employeeID]      int           NOT NULL,  /*PK is also FK to employee*/
   [specialization]  nvarchar(255) NULL,
   [medicalLicenseNo] nvarchar(255) NULL,
   CONSTRAINT [PK_doctor] PRIMARY KEY ([employeeID])
@@ -258,9 +258,9 @@ CREATE TABLE [invoice] (
   [total_amount]    float         NULL,
   [status]          nvarchar(255) NULL,
   [date]            date          NULL,
-  [insuranceAmount] float         NULL,
-  [patientAmount]   float         NULL,
-  [paidAmount]      float         NOT NULL DEFAULT (0),
+  [insuranceAmount] float         NULL,  
+  [patientAmount]   float         NULL,  
+  [paidAmount]      float         NOT NULL DEFAULT (0),  
   CONSTRAINT [PK_invoice] PRIMARY KEY ([id])
 )
 
@@ -280,7 +280,7 @@ CREATE TABLE [payment] (
   [patientID]       nvarchar(255) NOT NULL,
   [paymentmethodID] int           NULL,
   [amount]          float         NOT NULL,
-  [type]            nvarchar(50)  NOT NULL DEFAULT ('Payment'),
+  [type]            nvarchar(50)  NOT NULL DEFAULT ('Payment'),   
   [date]            datetime      NOT NULL DEFAULT (GETDATE()),
   CONSTRAINT [PK_payment] PRIMARY KEY ([id]),
   CONSTRAINT [FK_payment_invoice] FOREIGN KEY ([invoiceID]) REFERENCES [invoice] ([id]),
@@ -294,7 +294,7 @@ CREATE TABLE [druginteraction] (
   [id]          int           IDENTITY(1,1) NOT NULL,
   [drugID1]     int           NOT NULL,
   [drugID2]     int           NOT NULL,
-  [severity]    nvarchar(50)  NULL,
+  [severity]    nvarchar(50)  NULL,      
   [description] nvarchar(255) NULL,
   CONSTRAINT [PK_druginteraction] PRIMARY KEY ([id]),
   CONSTRAINT [FK_druginteraction_drug1] FOREIGN KEY ([drugID1]) REFERENCES [drug] ([id]),
@@ -302,13 +302,16 @@ CREATE TABLE [druginteraction] (
   CONSTRAINT [CK_druginteraction_distinct] CHECK ([drugID1] <> [drugID2]),
   CONSTRAINT [CK_druginteraction_severity] CHECK ([severity] IN (N'Minor', N'Moderate', N'Severe') OR [severity] IS NULL)
 )
+GO
 
 ALTER TABLE [druginteraction]
   ADD [drugPairLow]  AS (CASE WHEN [drugID1] < [drugID2] THEN [drugID1] ELSE [drugID2] END) PERSISTED,
       [drugPairHigh] AS (CASE WHEN [drugID1] < [drugID2] THEN [drugID2] ELSE [drugID1] END) PERSISTED
+GO
 
 ALTER TABLE [druginteraction]
   ADD CONSTRAINT [UQ_druginteraction_unordered_pair] UNIQUE ([drugPairLow], [drugPairHigh])
+GO
 
 CREATE TABLE [UserAccount] (
   [id]            int              IDENTITY(1,1) NOT NULL,
@@ -332,9 +335,11 @@ CREATE TABLE [UserAccount] (
    OR ([role] <> N'Patient' AND [employeeID] IS NOT NULL AND [patientID] IS NULL)
   )
 )
+GO
 
 CREATE INDEX [IX_UserAccount_patientID]  ON [UserAccount] ([patientID])
 CREATE INDEX [IX_UserAccount_employeeID] ON [UserAccount] ([employeeID])
+GO
 
 CREATE TABLE [iotdevice] (
   [id]               int           IDENTITY(1,1) NOT NULL,
@@ -391,6 +396,7 @@ CREATE TABLE [AlertThreshold] (
   [createdate]      date          NULL,
   CONSTRAINT [PK_AlertThreshold] PRIMARY KEY ([id])
 )
+GO
 
 ALTER TABLE [patient]
   ADD CONSTRAINT [FK_patient_insurance]
@@ -512,53 +518,7 @@ ALTER TABLE [labalert]
   ADD CONSTRAINT [FK_labalert_doctor]
   FOREIGN KEY ([doctorID]) REFERENCES [doctor] ([employeeID])
 
-ALTER TABLE [labalert]
-  ADD CONSTRAINT [FK_labalert_labresult]
-  FOREIGN KEY ([labResultID]) REFERENCES [labresult] ([id])
-
-ALTER TABLE [prescription]
-  ADD CONSTRAINT [FK_prescription_patient]
-  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
-
-ALTER TABLE [prescription]
-  ADD CONSTRAINT [FK_prescription_employee]
-  FOREIGN KEY ([employeeID]) REFERENCES [employee] ([id])
-
-ALTER TABLE [prescription]
-  ADD CONSTRAINT [FK_prescription_appointment]
-  FOREIGN KEY ([appointmentID]) REFERENCES [appointment] ([id])
-
-ALTER TABLE [prescription]
-  ADD CONSTRAINT [FK_prescription_admission]
-  FOREIGN KEY ([admissionID]) REFERENCES [admission] ([id])
-
-ALTER TABLE [prescriptionitem]
-  ADD CONSTRAINT [FK_prescriptionitem_prescription]
-  FOREIGN KEY ([prescriptionID]) REFERENCES [prescription] ([id])
-
-ALTER TABLE [prescriptionitem]
-  ADD CONSTRAINT [FK_prescriptionitem_drug]
-  FOREIGN KEY ([drugID]) REFERENCES [drug] ([id])
-
-ALTER TABLE [storage_transaction]
-  ADD CONSTRAINT [FK_storage_transaction_drug]
-  FOREIGN KEY ([drugID]) REFERENCES [drug] ([id])
-
-ALTER TABLE [storage_transaction]
-  ADD CONSTRAINT [FK_storage_transaction_storage]
-  FOREIGN KEY ([storageID]) REFERENCES [storage] ([id])
-
-ALTER TABLE [invoice]
-  ADD CONSTRAINT [FK_invoice_patient]
-  FOREIGN KEY ([patientID]) REFERENCES [patient] ([nationalID])
-
-ALTER TABLE [invoice]
-  ADD CONSTRAINT [FK_invoice_admission]
-  FOREIGN KEY ([admissionID]) REFERENCES [admission] ([id])
-
-ALTER TABLE [invoice]
-  ADD CONSTRAINT [FK_invoice_appointment]
-  FOREIGN KEY ([appointmentID]) REFERENCES [appointment] ([id])
+----------------------------------------------------------------------------
 
 ALTER TABLE [labalert]
   ADD CONSTRAINT [FK_labalert_labresult]
@@ -814,4 +774,3 @@ CREATE INDEX [IX_devicetransfer_patientID]       ON [devicetransfer] ([patientID
 CREATE INDEX [IX_logs_deviceID_timestamp]        ON [logs] ([deviceID], [timestamp])
 CREATE INDEX [IX_alert_logID]                    ON [alert] ([logID])
 CREATE INDEX [IX_AlertThreshold_measurementType]  ON [AlertThreshold] ([measurementType])
-
