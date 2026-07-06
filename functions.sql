@@ -172,3 +172,61 @@ BEGIN
 
   RETURN @result
 END
+
+CREATE FUNCTION [fn_GetDepartmentBedStats] ()
+RETURNS TABLE
+AS
+RETURN
+(
+  SELECT
+    [d].[id]                                                       AS departmentID,
+    [d].[name]                                                     AS departmentName,
+    [d].[type]                                                     AS departmentType,
+    COUNT([b].[id])                                                AS totalBeds,
+    SUM(CASE WHEN [b].[status] = N'Occupied' THEN 1 ELSE 0 END)    AS occupiedBeds,
+    SUM(CASE WHEN [b].[status] = N'Free'     THEN 1 ELSE 0 END)    AS freeBeds,
+    SUM(CASE WHEN [b].[status] = N'Reserved' THEN 1 ELSE 0 END)    AS reservedBeds,
+    CAST(ROUND(
+        100.0 * SUM(CASE WHEN [b].[status] = N'Occupied' THEN 1 ELSE 0 END)
+        / NULLIF(COUNT([b].[id]), 0)
+    , 2) AS float)                                                  AS occupancyPercent
+  FROM [department] AS [d]
+  LEFT JOIN [bed] AS [b] ON [b].[departmentID] = [d].[id]
+  GROUP BY [d].[id], [d].[name], [d].[type]
+)
+
+CREATE FUNCTION [fn_CountActiveAdmissions] (@departmentID int = NULL)
+RETURNS int
+AS
+BEGIN
+  DECLARE @cnt int
+
+  SELECT @cnt = COUNT(*)
+  FROM [admission] AS [a]
+  INNER JOIN [bed] AS [b] ON [b].[id] = [a].[bedID]
+  WHERE [a].[exitdate] IS NULL
+    AND (@departmentID IS NULL OR [b].[departmentID] = @departmentID)
+
+  RETURN @cnt
+END
+
+CREATE FUNCTION [fn_CurrentSessionRole] ()
+RETURNS nvarchar(50)
+AS
+BEGIN
+  RETURN CAST(SESSION_CONTEXT(N'Role') AS nvarchar(50))
+END
+
+CREATE FUNCTION [fn_CurrentSessionPatientID] ()
+RETURNS nvarchar(255)
+AS
+BEGIN
+  RETURN CAST(SESSION_CONTEXT(N'PatientID') AS nvarchar(255))
+END
+
+CREATE FUNCTION [fn_CurrentSessionEmployeeID] ()
+RETURNS int
+AS
+BEGIN
+  RETURN CAST(SESSION_CONTEXT(N'EmployeeID') AS int)
+END
