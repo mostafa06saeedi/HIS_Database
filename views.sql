@@ -190,3 +190,54 @@ INNER JOIN [patient] AS [p] ON [p].[nationalID] = [pr].[patientID]
 WHERE [pr].[status] = N'Pending'
 GO
 
+CREATE VIEW [vw_LabPendingRequests] AS
+SELECT
+  [req].[id] AS requestID, [req].[type], [req].[date], [req].[status],
+  [p].[nationalID] AS patientID, [p].[name] AS patientName,
+  [e].[name] AS requestedByDoctor
+FROM [Labimagingrequest] AS [req]
+LEFT JOIN [appointment] AS [ap] ON [ap].[id] = [req].[appointmentID]
+LEFT JOIN [admission]   AS [ad] ON [ad].[id] = [req].[admissionID]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = ISNULL([ap].[patientID], [ad].[patientID])
+INNER JOIN [employee] AS [e] ON [e].[id] = [req].[employeeID]
+WHERE [req].[status] IN (N'Requested', N'InProgress')
+GO
+
+
+CREATE VIEW [vw_DepartmentBedCapacity] AS
+SELECT * FROM [dbo].[fn_GetDepartmentBedStats]()
+GO
+
+CREATE VIEW [vw_CurrentAdmissions] AS
+SELECT
+  [ad].[id] AS admissionID, [p].[nationalID] AS patientID, [p].[name] AS patientName,
+  [d].[name] AS departmentName, [b].[room], [ad].[entrydate],
+  DATEDIFF(DAY, [ad].[entrydate], GETDATE()) AS daysAdmitted,
+  [e].[name] AS responsibleDoctor
+FROM [admission] AS [ad]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [ad].[patientID]
+INNER JOIN [bed] AS [b] ON [b].[id] = [ad].[bedID]
+INNER JOIN [department] AS [d] ON [d].[id] = [b].[departmentID]
+INNER JOIN [employee] AS [e] ON [e].[id] = [ad].[employeeID]
+WHERE [ad].[exitdate] IS NULL
+GO
+
+CREATE VIEW [vw_ReceptionTodayAppointments] AS
+SELECT
+  [a].[id] AS appointmentID, [a].[time], [a].[status],
+  [p].[nationalID] AS patientID, [p].[name] AS patientName,
+  [e].[name] AS doctorName, [d].[name] AS departmentName
+FROM [appointment] AS [a]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [a].[patientID]
+INNER JOIN [employee] AS [e] ON [e].[id] = [a].[employeeID]
+INNER JOIN [department] AS [d] ON [d].[id] = [a].[departmentID]
+WHERE [a].[date] = CAST(GETDATE() AS date)
+GO
+
+CREATE VIEW [vw_ManagerDepartmentReport] AS
+SELECT
+  [stats].[departmentID], [stats].[departmentName], [stats].[totalBeds],
+  [stats].[occupiedBeds], [stats].[freeBeds], [stats].[occupancyPercent],
+  [dbo].[fn_CountActiveAdmissions]([stats].[departmentID]) AS activeAdmissions
+FROM [dbo].[fn_GetDepartmentBedStats]() AS [stats]
+GO
