@@ -191,3 +191,80 @@ BEGIN
   END
 END
 GO
+
+CREATE TRIGGER [trg_invoiceitem_recalculate_total] ON [invoiceitem]
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  ;WITH [AffectedInvoices] AS (
+    SELECT [invoiceID] FROM [inserted]
+    UNION
+    SELECT [invoiceID] FROM [deleted]
+  ),
+  [InvoiceTotals] AS (
+    SELECT [ai].[invoiceID], ISNULL(SUM([ii].[amount]), 0) AS [newTotal]
+    FROM [AffectedInvoices] AS [ai]
+    LEFT JOIN [invoiceitem] AS [ii] ON [ii].[invoiceID] = [ai].[invoiceID]
+    GROUP BY [ai].[invoiceID]
+  )
+  UPDATE [inv]
+  SET [inv].[total_amount]    = [it].[newTotal],
+      [inv].[insuranceAmount] = ROUND([it].[newTotal] * ISNULL([ins].[coveragepercent], 0) / 100.0, 2),
+      [inv].[patientAmount]   = ROUND([it].[newTotal] * (1 - ISNULL([ins].[coveragepercent], 0) / 100.0), 2)
+  FROM [invoice] AS [inv]
+  INNER JOIN [InvoiceTotals] AS [it] ON [it].[invoiceID] = [inv].[id]
+  INNER JOIN [patient] AS [p] ON [p].[nationalID] = [inv].[patientID]
+  LEFT JOIN [insurance] AS [ins] ON [ins].[id] = [p].[insuranceID] AND [ins].[isActive] = 1
+END
+GO
+
+CREATE TRIGGER [trg_payment_update_invoice] ON [payment]
+AFTER INSERT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  UPDATE [inv]
+  SET [inv].[paidAmount] = [inv].[paidAmount] + [paid].[amountSum]
+  FROM [invoice] AS [inv]
+  INNER JOIN (
+    SELECT [invoiceID], SUM([amount]) AS [amountSum] FROM [inserted] GROUP BY [invoiceID]
+  ) AS [paid] ON [paid].[invoiceID] = [inv].[id]
+
+  UPDATE [invoice]
+  SET [status] = CASE
+                   WHEN [total_amount] > 0 AND [paidAmount] >= [total_amount] THEN N'Paid'
+                   WHEN [paidAmount] > 0 THEN N'PartiallyPaid'
+                   ELSE N'Unpaid'
+                 END
+  WHERE [id] IN (SELECT DISTINCT [invoiceID] FROM [inserted])
+END
+GO
+
+CREATE TRIGGER [trg_appointment_prevent_conflict] ON [appointment]
+INSTEAD OF INSERT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  IF EXISTS (
+    SELECT 1
+    FROM [inserted] AS [i]
+    INNER JOIN [appointment] AS [a]
+      ON [a].[employeeID] = [i].[employeeID]
+     AND [a].[date]       = [i].[date]
+     AND [a].[time]       = [i].[time]
+     AND [a].[status] <> N'Cancelled'
+  )
+  BEGIN
+    RAISERROR(N'The selected doctor already has an appointment at this date and time.', 16, 1)
+    RETURN
+  END
+
+  INSERT INTO [appointment] ([employeeID], [patientID], [departmentID], [date], [time], [status], [appointment_type])
+  SELECT [employeeID], [patientID], [departmentID], [date], [time], ISNULL([status], N'Scheduled'), [appointment_type]
+  FROM [inserted]
+END
+GO
