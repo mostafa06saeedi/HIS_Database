@@ -408,3 +408,174 @@ BEGIN
   VALUES (@drugID1, @drugID2, @severity, @description)
 END
 GO
+  
+CREATE PROCEDURE [sp_AddInventoryItem]
+  @name      nvarchar(255),
+  @type      nvarchar(255),
+  @inventory int = 0
+AS
+BEGIN
+  SET NOCOUNT ON
+  INSERT INTO [storage] ([name], [inventory], [type])
+  VALUES (@name, @inventory, @type)
+END
+GO
+
+CREATE PROCEDURE [sp_CreateInvoice]
+  @patientID       nvarchar(255),
+  @admissionID     int = NULL,
+  @appointmentID   int = NULL,
+  @insuranceId     int = NULL,
+  @paymentmethodID int = NULL,
+  @newInvoiceID    int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [invoice] ([patientID], [admissionID], [appointmentID], [insuranceId], [paymentmethodID], [total_amount], [status], [date])
+  VALUES (@patientID, @admissionID, @appointmentID, @insuranceId, @paymentmethodID, 0, N'Unpaid', GETDATE())
+
+  SET @newInvoiceID = SCOPE_IDENTITY()
+END
+GO
+
+CREATE PROCEDURE [sp_AddInvoiceItem]
+  @invoiceID   int,
+  @item        nvarchar(255),
+  @type        nvarchar(255),
+  @description nvarchar(255) = NULL,
+  @amount      float
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [invoiceitem] ([invoiceID], [item], [type], [description], [amount])
+  VALUES (@invoiceID, @item, @type, @description, @amount)
+END
+GO
+
+CREATE PROCEDURE [sp_RecordPayment]
+  @invoiceID       int,
+  @patientID       nvarchar(255),
+  @amount          float,
+  @paymentmethodID int = NULL,
+  @type            nvarchar(50) = N'Payment'
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [payment] ([invoiceID], [patientID], [paymentmethodID], [amount], [type], [date])
+  VALUES (@invoiceID, @patientID, @paymentmethodID, @amount, @type, GETDATE())
+END
+GO
+
+CREATE PROCEDURE [sp_RegisterIoTDevice]
+  @macaddress     nvarchar(255),
+  @type           nvarchar(255),
+  @newDeviceID    int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [iotdevice] ([macaddress], [type], [status], [installationdate])
+  VALUES (@macaddress, @type, N'Active', GETDATE())
+
+  SET @newDeviceID = SCOPE_IDENTITY()
+END
+GO
+
+CREATE PROCEDURE [sp_AssignDeviceToPatient]
+  @iotdeviceID   int,
+  @patientID     nvarchar(255),
+  @admissionID   int = NULL,
+  @departmentID  int,
+  @bedID         int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [devicetransfer] ([patientID], [admissionID], [departmentID], [bedID], [iotdeviceID], [assignedAt])
+  VALUES (@patientID, @admissionID, @departmentID, @bedID, @iotdeviceID, GETDATE())
+END
+GO
+
+CREATE PROCEDURE [sp_UnassignDevice]
+  @iotdeviceID int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  UPDATE [devicetransfer]
+  SET [unassignedAt] = GETDATE()
+  WHERE [iotdeviceID] = @iotdeviceID AND [unassignedAt] IS NULL
+END
+GO
+
+CREATE PROCEDURE [sp_RecordDeviceLog]
+  @deviceID  int,
+  @type      nvarchar(255),
+  @value     float,
+  @unit      nvarchar(255) = NULL,
+  @timestamp datetime = NULL
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [logs] ([deviceID], [timestamp], [type], [value], [unit])
+  VALUES (@deviceID, ISNULL(@timestamp, GETDATE()), @type, @value, @unit)
+END
+GO
+
+CREATE PROCEDURE [sp_SetAlertThreshold]
+  @measurementType nvarchar(255),
+  @minValue        float = NULL,
+  @maxValue        float = NULL,
+  @severity        nvarchar(255) = N'Critical',
+  @isGlobal        bit = 1,
+  @employeeID      int = NULL,
+  @patientID       nvarchar(255) = NULL
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [AlertThreshold] ([measurementType], [minValue], [maxValue], [severity], [isGlobal], [employeeID], [patientID], [createdate])
+  VALUES (@measurementType, @minValue, @maxValue, @severity, @isGlobal, @employeeID, @patientID, GETDATE())
+END
+GO
+
+CREATE PROCEDURE [sp_AcknowledgeAlert]
+  @alertID    int,
+  @employeeID int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  UPDATE [alert]
+  SET [status] = N'ConfirmedByNurse', [acknowledgedbyemployeeID] = @employeeID
+  WHERE [id] = @alertID
+END
+GO
+
+CREATE PROCEDURE [sp_ResolveAlert]
+  @alertID int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  UPDATE [alert]
+  SET [status] = N'Resolved', [resolvedtime] = GETDATE()
+  WHERE [id] = @alertID
+END
+GO
+
+CREATE PROCEDURE [sp_AssignShift]
+  @employeeID int,
+  @shiftID    int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  IF NOT EXISTS (SELECT 1 FROM [employeeshift] WHERE [employeeID] = @employeeID AND [shiftID] = @shiftID)
+    INSERT INTO [employeeshift] ([employeeID], [shiftID]) VALUES (@employeeID, @shiftID)
+END
+GO
