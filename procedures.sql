@@ -208,3 +208,203 @@ BEGIN
   END CATCH
 END
 GO
+
+CREATE PROCEDURE [sp_DischargePatient]
+  @admissionID int,
+  @exitdate    date = NULL
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  UPDATE [admission]
+  SET [exitdate] = ISNULL(@exitdate, GETDATE())
+  WHERE [id] = @admissionID AND [exitdate] IS NULL
+END
+GO
+
+CREATE PROCEDURE [sp_RequestLabImaging]
+  @employeeID    int,
+  @appointmentID int = NULL,
+  @admissionID   int = NULL,
+  @type          nvarchar(255),
+  @newRequestID  int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [Labimagingrequest] ([employeeID], [appointmentID], [admissionID], [type], [date], [status])
+  VALUES (@employeeID, @appointmentID, @admissionID, @type, GETDATE(), N'Requested')
+
+  SET @newRequestID = SCOPE_IDENTITY()
+END
+GO
+
+CREATE PROCEDURE [sp_RecordLabResult]
+  @LabimagingrequestID  int,
+  @reportedbyemployeeID int,
+  @isCriticalID         int = NULL,
+  @value                nvarchar(255),
+  @description          nvarchar(255) = NULL,
+  @newLabResultID       int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON
+  SET XACT_ABORT ON
+
+  BEGIN TRY
+    BEGIN TRANSACTION
+
+    INSERT INTO [labresult] ([reportedbyemployeeID], [isCritical], [LabimagingrequestID], [value], [status], [date], [description])
+    VALUES (@reportedbyemployeeID, @isCriticalID, @LabimagingrequestID, @value, N'Completed', GETDATE(), @description)
+
+    SET @newLabResultID = SCOPE_IDENTITY()
+
+    UPDATE [Labimagingrequest] SET [status] = N'Completed' WHERE [id] = @LabimagingrequestID
+
+    COMMIT TRANSACTION
+  END TRY
+  BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+    THROW
+  END CATCH
+END
+GO
+
+CREATE PROCEDURE [sp_AcknowledgeLabAlert]
+  @labAlertID int
+AS
+BEGIN
+  SET NOCOUNT ON
+  UPDATE [labalert] SET [status] = N'ConfirmedByNurse' WHERE [id] = @labAlertID
+END
+GO
+
+CREATE PROCEDURE [sp_ResolveLabAlert]
+  @labAlertID int
+AS
+BEGIN
+  SET NOCOUNT ON
+  UPDATE [labalert] SET [status] = N'Resolved', [resolvedAt] = GETDATE() WHERE [id] = @labAlertID
+END
+GO
+
+CREATE PROCEDURE [sp_IssuePrescription]
+  @patientID          nvarchar(255),
+  @employeeID         int,
+  @appointmentID      int = NULL,
+  @admissionID        int = NULL,
+  @newPrescriptionID  int OUTPUT
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [prescription] ([patientID], [employeeID], [appointmentID], [admissionID], [date], [status])
+  VALUES (@patientID, @employeeID, @appointmentID, @admissionID, GETDATE(), N'Pending')
+
+  SET @newPrescriptionID = SCOPE_IDENTITY()
+END
+GO
+
+CREATE PROCEDURE [sp_AddPrescriptionItem]
+  @prescriptionID int,
+  @drugID         int,
+  @dose           nvarchar(255),
+  @duration       nvarchar(255),
+  @quantity       int
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  DECLARE @conflictDrug nvarchar(255), @severity nvarchar(50)
+
+  SELECT TOP 1 @conflictDrug = [d].[name], @severity = [dbo].[fn_CheckDrugInteraction](@drugID, [pi].[drugID])
+  FROM [prescriptionitem] AS [pi]
+  INNER JOIN [drug] AS [d] ON [d].[id] = [pi].[drugID]
+  WHERE [pi].[prescriptionID] = @prescriptionID
+    AND [dbo].[fn_CheckDrugInteraction](@drugID, [pi].[drugID]) IS NOT NULL
+
+  IF @severity = N'Severe'
+  BEGIN
+    RAISERROR(N'Severe drug interaction detected with %s; prescription item rejected.', 16, 1, @conflictDrug)
+    RETURN
+  END
+  ELSE IF @severity IS NOT NULL
+  BEGIN
+    RAISERROR(N'Warning: drug interaction (%s) detected with %s.', 5, 1, @severity, @conflictDrug) WITH NOWAIT
+  END
+
+  INSERT INTO [prescriptionitem] ([prescriptionID], [drugID], [dose], [duration], [quantity])
+  VALUES (@prescriptionID, @drugID, @dose, @duration, @quantity)
+END
+GO
+
+CREATE PROCEDURE [sp_DispenseMedication]
+  @prescriptionID int,
+  @storageID      int
+AS
+BEGIN
+  SET NOCOUNT ON
+  SET XACT_ABORT ON
+
+  BEGIN TRY
+    BEGIN TRANSACTION
+
+    INSERT INTO [storage_transaction] ([drugID], [storageID], [date], [type], [quantity], [reason])
+    SELECT [drugID], @storageID, GETDATE(), N'OUT', [quantity], N'Dispense prescription #' + CAST(@prescriptionID AS nvarchar(20))
+    FROM [prescriptionitem]
+    WHERE [prescriptionID] = @prescriptionID
+
+    UPDATE [prescription] SET [status] = N'Dispensed' WHERE [id] = @prescriptionID
+
+    COMMIT TRANSACTION
+  END TRY
+  BEGIN CATCH
+    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+    THROW
+  END CATCH
+END
+GO
+
+CREATE PROCEDURE [sp_ReceiveStock]
+  @drugID    int,
+  @storageID int,
+  @quantity  int,
+  @reason    nvarchar(255) = N'Restock'
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  INSERT INTO [storage_transaction] ([drugID], [storageID], [date], [type], [quantity], [reason])
+  VALUES (@drugID, @storageID, GETDATE(), N'IN', @quantity, @reason)
+END
+GO
+
+CREATE PROCEDURE [sp_AddDrugInteraction]
+  @drugID1      int,
+  @drugID2      int,
+  @severity     nvarchar(50),
+  @description  nvarchar(255) = NULL
+AS
+BEGIN
+  SET NOCOUNT ON
+
+  IF @drugID1 = @drugID2
+  BEGIN
+    RAISERROR(N'A drug cannot interact with itself.', 16, 1)
+    RETURN
+  END
+
+  IF EXISTS (
+    SELECT 1 FROM [druginteraction]
+    WHERE ([drugID1] = @drugID1 AND [drugID2] = @drugID2)
+       OR ([drugID1] = @drugID2 AND [drugID2] = @drugID1)
+  )
+  BEGIN
+    RAISERROR(N'This drug interaction has already been recorded.', 16, 1)
+    RETURN
+  END
+
+  INSERT INTO [druginteraction] ([drugID1], [drugID2], [severity], [description])
+  VALUES (@drugID1, @drugID2, @severity, @description)
+END
+GO
