@@ -83,3 +83,110 @@ SELECT
 FROM [invoice] AS [inv]
 WHERE [inv].[patientID] = [dbo].[fn_CurrentSessionPatientID]()
 GO
+
+CREATE VIEW [vw_DoctorMyAppointments] AS
+SELECT [a].[id] AS appointmentID, [a].[date], [a].[time], [a].[status],
+       [p].[nationalID] AS patientID, [p].[name] AS patientName,
+       [dbo].[fn_CalculateAge]([p].[nationalID]) AS patientAge
+FROM [appointment] AS [a]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [a].[patientID]
+WHERE [a].[employeeID] = [dbo].[fn_CurrentSessionEmployeeID]()
+  AND [a].[status] IN (N'Scheduled', N'Rescheduled')
+GO
+
+CREATE VIEW [vw_DoctorMyAdmittedPatients] AS
+SELECT [ad].[id] AS admissionID, [p].[nationalID] AS patientID, [p].[name] AS patientName,
+       [ad].[entrydate], [d].[name] AS departmentName, [b].[room],
+       DATEDIFF(DAY, [ad].[entrydate], GETDATE()) AS daysAdmitted
+FROM [admission] AS [ad]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [ad].[patientID]
+INNER JOIN [bed] AS [b] ON [b].[id] = [ad].[bedID]
+INNER JOIN [department] AS [d] ON [d].[id] = [b].[departmentID]
+WHERE [ad].[employeeID] = [dbo].[fn_CurrentSessionEmployeeID]()
+  AND [ad].[exitdate] IS NULL
+GO
+
+CREATE VIEW [vw_DoctorPendingLabResults] AS
+SELECT
+  [la].[id]          AS labAlertID,
+  [la].[severity],
+  [la].[status]      AS alertStatus,
+  [la].[createdAt],
+  [lr].[value],
+  [lr].[description],
+  [req].[type]       AS testType,
+  [p].[nationalID]   AS patientID,
+  [p].[name]         AS patientName
+FROM [labalert] AS [la]
+INNER JOIN [labresult] AS [lr] ON [lr].[id] = [la].[labResultID]
+INNER JOIN [Labimagingrequest] AS [req] ON [req].[id] = [lr].[LabimagingrequestID]
+LEFT JOIN [appointment] AS [ap] ON [ap].[id] = [req].[appointmentID]
+LEFT JOIN [admission]   AS [ad] ON [ad].[id] = [req].[admissionID]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = ISNULL([ap].[patientID], [ad].[patientID])
+WHERE [la].[doctorID] = [dbo].[fn_CurrentSessionEmployeeID]()
+  AND [la].[status] <> N'Resolved'
+GO
+
+CREATE VIEW [vw_DoctorPatientHistory] AS
+SELECT
+  [p].[nationalID]  AS patientID,
+  [p].[name]        AS patientName,
+  [ic].[code]       AS icdCode,
+  [ic].[name]       AS diagnosisName,
+  [dd].[description],
+  COALESCE([ap].[date], [ad].[entrydate]) AS diagnosisDate
+FROM [doctordiagnosis] AS [dd]
+INNER JOIN [icddisease] AS [ic] ON [ic].[id] = [dd].[icdID]
+LEFT JOIN [appointment] AS [ap] ON [ap].[id] = [dd].[appointmentID]
+LEFT JOIN [admission]   AS [ad] ON [ad].[id] = [dd].[admissionID]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = ISNULL([ap].[patientID], [ad].[patientID])
+WHERE [dbo].[fn_CurrentSessionEmployeeID]() IN (ISNULL([ap].[employeeID], -1), ISNULL([ad].[employeeID], -1))
+GO
+
+CREATE VIEW [vw_NurseActiveAlerts] AS
+SELECT
+  [al].[id]         AS alertID,
+  [al].[severity],
+  [al].[status],
+  [al].[createdtime],
+  [l].[type]        AS measurementType,
+  [l].[value],
+  [l].[unit],
+  [p].[nationalID]  AS patientID,
+  [p].[name]        AS patientName,
+  [b].[room],
+  [d].[name]        AS departmentName
+FROM [alert] AS [al]
+INNER JOIN [logs] AS [l] ON [l].[id] = [al].[logID]
+INNER JOIN [devicetransfer] AS [dt] ON [dt].[iotdeviceID] = [l].[deviceID] AND [dt].[unassignedAt] IS NULL
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [dt].[patientID]
+INNER JOIN [bed] AS [b] ON [b].[id] = [dt].[bedID]
+INNER JOIN [department] AS [d] ON [d].[id] = [b].[departmentID]
+WHERE [al].[status] <> N'Resolved'
+  AND [d].[id] = (SELECT [departmentID] FROM [employee] WHERE [id] = [dbo].[fn_CurrentSessionEmployeeID]())
+GO
+
+CREATE VIEW [vw_NurseWardPatients] AS
+SELECT
+  [p].[nationalID] AS patientID, [p].[name] AS patientName, [b].[room],
+  [ad].[entrydate], DATEDIFF(DAY, [ad].[entrydate], GETDATE()) AS daysAdmitted,
+  [e].[name] AS responsibleDoctor
+FROM [admission] AS [ad]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [ad].[patientID]
+INNER JOIN [bed] AS [b] ON [b].[id] = [ad].[bedID]
+INNER JOIN [employee] AS [e] ON [e].[id] = [ad].[employeeID]
+WHERE [ad].[exitdate] IS NULL
+  AND [b].[departmentID] = (SELECT [departmentID] FROM [employee] WHERE [id] = [dbo].[fn_CurrentSessionEmployeeID]())
+GO
+
+CREATE VIEW [vw_PharmacyPendingPrescriptions] AS
+SELECT
+  [pr].[id] AS prescriptionID, [pr].[date], [p].[nationalID] AS patientID, [p].[name] AS patientName,
+  [dg].[id] AS drugID, [dg].[name] AS drugName, [pi].[dose], [pi].[duration], [pi].[quantity]
+FROM [prescription] AS [pr]
+INNER JOIN [prescriptionitem] AS [pi] ON [pi].[prescriptionID] = [pr].[id]
+INNER JOIN [drug] AS [dg] ON [dg].[id] = [pi].[drugID]
+INNER JOIN [patient] AS [p] ON [p].[nationalID] = [pr].[patientID]
+WHERE [pr].[status] = N'Pending'
+GO
+
