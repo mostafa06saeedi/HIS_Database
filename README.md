@@ -1,746 +1,218 @@
 <div align="center">
 
-# 🏥 Hospital Information System (HIS)
+# 🏥 Hospital Information System
+### Database Design — Phase 1
 
-### Complete SQL Server Database & Flask Web Application
-
-![SQL Server](https://img.shields.io/badge/SQL%20Server-2022-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-Web%20Application-000000?style=for-the-badge&logo=flask)
-![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)
+![Phase](https://img.shields.io/badge/Phase%201-Complete-28a745?style=for-the-badge)
 ![Tables](https://img.shields.io/badge/Tables-34-0366d6?style=for-the-badge)
-![Views](https://img.shields.io/badge/Views-✓-6f42c1?style=for-the-badge)
-![Procedures](https://img.shields.io/badge/Stored%20Procedures-✓-ff9800?style=for-the-badge)
-![Functions](https://img.shields.io/badge/Functions-✓-2ea44f?style=for-the-badge)
-![Triggers](https://img.shields.io/badge/Triggers-✓-e63946?style=for-the-badge)
+![Modules](https://img.shields.io/badge/Modules-9-6f42c1?style=for-the-badge)
 
-*A complete Hospital Information System featuring a fully normalized SQL Server database, automated business logic, analytical reporting, IoT monitoring, and a modern Flask-based web interface.*
+*A fully relational database schema for managing patients, clinical workflows, hospital resources, pharmacy, financials, and IoT device monitoring — designed as the core foundation of a modern HIS.*
 
 </div>
 
 ---
 
-# 📋 Table of Contents
+## 📋 Table of Contents
 
 - [Overview](#-overview)
-- [Highlights](#-highlights)
-- [Features](#-features)
-- [System Architecture](#-system-architecture)
-- [Database Modules](#-database-modules)
-- [Database Objects](#-database-objects)
-- [Web Application](#-web-application)
+- [Modules](#-modules)
 - [Schema](#-schema)
-- [Project Structure](#-project-structure)
-- [Installation](#-installation)
-- [Screenshots](#-screenshots)
 - [Design Decisions](#-design-decisions)
-- [Future Improvements](#-future-improvements)
+- [Getting Started](#-getting-started)
+- [Phase 2 Roadmap](#-phase-2-roadmap)
 - [Team](#-team)
 
 ---
 
-# 🔍 Overview
+## 🔍 Overview
 
-This project is a complete **Hospital Information System (HIS)** developed as the final Database course project.
+This project is the **Phase 1 database design** for a Hospital Information System (HIS) — a centralized platform that unifies all hospital departments under one data model.
 
-Unlike a traditional database assignment, this repository contains a complete backend database implementation together with a Flask-based web application capable of interacting directly with Microsoft SQL Server.
-
-The system models real hospital workflows including:
-
-- Patient Registration
-- Medical Records
-- Doctor Appointments
-- Hospital Admissions
-- Laboratory & Imaging
-- Pharmacy
-- Inventory
-- Financial Management
-- IoT Monitoring
-- Automated Alert System
-
-The database follows normalization principles and implements business logic directly inside SQL Server using stored procedures, functions, triggers, constraints, and views.
+The schema is built on **Microsoft SQL Server** and covers nine operational modules from patient registration to IoT-based vital sign monitoring. Every table, relationship, and constraint was designed with real clinical workflows in mind.
 
 ---
 
-# 🚀 Highlights
+## 📦 Modules
 
-| Component | Status |
-|-----------|--------|
-| Fully Normalized Database | ✅ |
-| 34 Relational Tables | ✅ |
-| Foreign Keys & Constraints | ✅ |
-| Stored Procedures | ✅ |
-| SQL Functions | ✅ |
-| SQL Triggers | ✅ |
-| SQL Views | ✅ |
-| Sample Data | ✅ |
-| Flask Web Interface | ✅ |
-| Dashboard | ✅ |
-| Patient Management | ✅ |
-| Financial Module | ✅ |
-| Inventory Management | ✅ |
-| IoT Monitoring | ✅ |
-| Laboratory Module | ✅ |
+### 1 · Patient Management
+> `patient` · `medicalrecord` · `insurance` · `icddisease` · `doctordiagnosis`
+
+Patients are registered once using their **national ID** as the primary key. A single `medicalrecord` is linked to each patient (enforced via `UNIQUE` constraint), storing pre-existing conditions, prior drug consumption, anthropometric data (height, weight), and vital signs.
+
+Physicians record diagnoses per encounter — either from an outpatient appointment or an inpatient admission — using standardized **ICD codes** via the `icddisease` lookup table.
 
 ---
 
-# ✨ Features
+### 2 · Admissions & Appointments
+> `appointment` · `admission` · `bed` · `patienttransfer`
 
-## Database
+Appointments support both in-person and online scheduling and track status (scheduled, cancelled, completed). When a patient requires inpatient care, an `admission` record is created with the assigned bed, responsible physician, entry/exit dates, and reason.
 
-- Fully normalized SQL Server schema
-- 34 relational tables
-- Strong referential integrity
-- CHECK constraints
-- UNIQUE constraints
-- Identity keys
-- Cascade relationships where appropriate
+Patient transfers between beds and departments during a single admission are fully logged in `patienttransfer` with timestamps and reasons.
 
 ---
 
-## Business Logic
+### 3 · Hospital Resources
+> `department` · `bed`
 
-- Stored Procedures
-- Scalar Functions
-- Table-Valued Functions
-- SQL Triggers
-- Views
-- Transactions
-- Error Handling
+All hospital departments (clinic, emergency, ICU, OR, lab, pharmacy, etc.) are managed through a single `department` table with a `type` discriminator. Each `bed` belongs to a department and carries a real-time `status` field: **free / reserved / occupied**.
 
 ---
 
-## Clinical Modules
+### 4 · Staff Management
+> `employee` · `doctor` · `surgeon` · `nurse` · `adminstaff` · `shift` · `employeeshift`
 
-- Patient Registration
-- Electronic Medical Records
-- Doctor Diagnosis
-- Appointment Scheduling
-- Admission Management
-- Bed Allocation
-- Patient Transfer
-
----
-
-## Laboratory
-
-- Lab Requests
-- Imaging Requests
-- Critical Result Detection
-- Automatic Lab Alerts
-
----
-
-## Pharmacy
-
-- Drug Catalog
-- Prescriptions
-- Prescription Items
-- Drug Interaction Database
-
----
-
-## Financial
-
-- Insurance Coverage
-- Invoices
-- Invoice Items
-- Payments
-- Payment Methods
-
----
-
-## Smart Hospital
-
-- IoT Devices
-- Vital Sign Logs
-- Patient Thresholds
-- Automatic Alert Generation
-
----
-
-## Web Interface
-
-- Flask
-- SQLAlchemy
-- Bootstrap
-- Dashboard
-- CRUD Operations
-- Responsive Design
-
----
-
-# 🏗 System Architecture
+All personnel share a common `employee` base table. Role-specific attributes are stored in dedicated subtype tables following the **ISA inheritance pattern**:
 
 ```
+employee  (base: name, department, contract, phone)
+  ├── doctor       → specialization, medicalLicenseNo
+  ├── surgeon      → surgicalSpecialty
+  ├── nurse        → grade
+  └── adminstaff   → role
+```
 
-Browser
-│
-▼
-Flask Web Application
-│
-├── Dashboard
-├── Patients
-├── Admissions
-├── Laboratory
-├── Pharmacy
-├── Inventory
-├── Financial
-└── IoT
-
-│
-
-▼
-
-SQLAlchemy ORM
-
-│
-
-▼
-
-Microsoft SQL Server
-
-│
-
-├── Tables
-├── Views
-├── Functions
-├── Procedures
-└── Triggers
+Shift scheduling is handled through a `shift` table and `employeeshift` junction, supporting many-to-many staff–shift assignments.
 
 ---
 
 ### 5 · Lab & Imaging
-
 > `Labimagingrequest` · `labresult` · `isCritical` · `labalert`
 
-The laboratory subsystem supports both **outpatient** and **inpatient** diagnostic workflows.
+Physicians submit lab or imaging requests linked to either an appointment (outpatient) or an admission (inpatient). Results are recorded in `labresult` and compared against reference ranges stored in `isCritical`.
 
-A physician creates a laboratory or imaging request linked to either an appointment or an admission. Each completed request stores one or more results inside `labresult`.
-
-Reference intervals are defined in `isCritical`.
-
-Whenever a measured value falls outside the acceptable range, SQL Server automatically creates a notification inside `labalert` through database triggers.
+If a result falls outside the defined range, a `labalert` record is created and routed directly to the responsible doctor for review.
 
 ```
-Doctor
-   │
-   ▼
-Lab Request
-   │
-   ▼
-Lab Result
-   │
-Compare with Reference Range
-   │
-   ├── Normal
-   │
-   └── Critical
-           │
-           ▼
-      Lab Alert
+Labimagingrequest
+      ↓
+  labresult ──── isCritical (reference ranges)
+      ↓ (if out of range)
+   labalert ──── doctor
 ```
 
 ---
 
-### 6 · Pharmacy
+### 6 · Pharmacy & Prescriptions
+> `prescription` · `prescriptionitem` · `drug`
 
-> `drug`
-> `prescription`
-> `prescriptionitem`
-> `druginteraction`
-
-Electronic prescriptions are fully normalized.
-
-Each prescription belongs to a patient encounter while individual medications are stored in `prescriptionitem`.
-
-Drug interactions are maintained separately and can be validated before dispensing medication.
-
-The design supports:
-
-- Multiple medications
-- Dosage
-- Quantity
-- Duration
-- Drug interaction lookup
+Prescriptions are issued electronically by physicians, linked to the patient's appointment or admission. Each prescription contains one or more `prescriptionitem` rows specifying drug, dose, duration, and quantity. The `drug` catalog holds all available medications with type and description.
 
 ---
 
 ### 7 · Inventory
+> `storage` · `storage_transaction`
 
-> `storage`
-> `storage_transaction`
+The `storage` table represents physical storage locations with a current inventory level. Every stock movement (intake or dispensing) is recorded as a `storage_transaction` with date, quantity, type, and reason — providing a full audit trail for inventory changes.
 
-Hospital inventory management is implemented using transaction history instead of mutable counters.
+---
 
-Each movement is recorded as:
+### 8 · Financial
+> `invoice` · `invoiceitem` · `paymentmethod` · `insurance`
 
-- IN
-- OUT
+Each patient visit or admission can generate an `invoice` tied to the patient, encounter, insurance plan, and payment method. Invoice line items are stored in `invoiceitem` with itemized amounts. The `insurance` table holds coverage percentages and active status for each plan.
 
-allowing complete auditing of stock history.
+---
+
+### 9 · IoT & Smart Alerts
+> `iotdevice` · `devicetransfer` · `logs` · `AlertThreshold` · `alert`
+
+Smart devices (vital sign wristbands, bed sensors, environmental sensors) are registered in `iotdevice` with their MAC address, type, operational status, and installation date.
+
+Since devices move between patients and locations, `devicetransfer` tracks every assignment with timestamps. Continuous sensor readings flow into `logs`. When a reading breaches a threshold defined in `AlertThreshold`, an `alert` is automatically generated and assigned to a staff member for acknowledgment.
 
 ```
-Storage
-      │
-      ▼
-Storage Transaction
-      │
-      ├── IN
-      └── OUT
+iotdevice ──── devicetransfer (patient / bed / department)
+    ↓
+  logs (timestamp · type · value · unit)
+    ↓
+AlertThreshold ──── alert ──── employee (acknowledges)
 ```
 
----
-
-### 8 · Financial System
-
-> `invoice`
-> `invoiceitem`
-> `payment`
-> `paymentmethod`
-> `insurance`
-
-The billing subsystem supports:
-
-- insurance calculation
-- patient share
-- paid amount
-- remaining balance
-- multiple payment methods
-
-Invoices contain detailed line items for every medical service.
+`AlertThreshold` supports both **global** standards and **patient-specific** thresholds set by a physician, controlled via the `isGlobal` flag and optional `patientID` / `employeeID` links.
 
 ---
 
-### 9 · IoT Monitoring
+## 🗺️ Schema
 
-> `iotdevice`
-> `devicetransfer`
-> `logs`
-> `AlertThreshold`
-> `alert`
+Full ERD covering all 34 tables and their relationships:
 
-The system supports continuous monitoring of patients through smart medical devices.
-
-Examples include:
-
-- Heart Rate sensors
-- Oxygen saturation monitors
-- Temperature sensors
-- Bed occupancy sensors
-
-Every reading is inserted into `logs`.
-
-Database triggers compare each reading against configurable thresholds.
-
-If values exceed acceptable limits, SQL Server automatically generates alerts for medical staff.
-
-```
-IoT Device
-      │
-      ▼
-Measurement Log
-      │
-Threshold Check
-      │
-      ├── OK
-      │
-      └── Alert
-               │
-               ▼
-          Employee
-```
+![ER Diagram](ER%20diagram.png)
 
 ---
 
-# ⚙ Database Features
+## 🧠 Design Decisions
 
-Unlike a traditional university database assignment, this project includes complete business logic implemented directly inside SQL Server.
-
-## Stored Procedures
-
-The database provides procedures for operations such as:
-
-- Patient registration
-- Appointment scheduling
-- Admission management
-- Prescription generation
-- Inventory transactions
-- Invoice creation
-- Payment processing
-- IoT management
+| # | Decision | Why |
+|---|----------|-----|
+| 1 | **National ID as patient PK** | Natural, unique, immutable identifier — no surrogate key needed |
+| 2 | **UNIQUE on `medicalrecord.patientID`** | One comprehensive medical file per patient, matching the clinical requirement |
+| 3 | **ISA inheritance for staff** | Avoids a flat table with many nullable columns; each subtype only holds its own attributes |
+| 4 | **Dual nullable FKs on service requests** | `Labimagingrequest` and `prescription` link to either `appointment` or `admission`, covering both outpatient and inpatient contexts with a single table |
+| 5 | **`status` on result rows, not reference tables** | `isCritical` defines ranges only; whether a specific result is critical is derived and stored on `labresult.status` |
+| 6 | **`isGlobal` flag on `AlertThreshold`** | One table handles both hospital-wide standards and custom per-patient thresholds set by a physician |
+| 7 | **`devicetransfer` for IoT location history** | Devices move between patients and rooms frequently; a history table is essential over a simple current-location field |
+| 8 | **Surrogate `IDENTITY` PKs throughout** | Consistent pattern, avoids composite PK issues in junction tables |
 
 ---
 
-## User Defined Functions
+## 🚀 Getting Started
 
-Several reusable SQL functions simplify common operations, including:
-
-- Financial calculations
-- Insurance coverage
-- Bed availability
-- Patient statistics
-- Drug related utilities
-
----
-
-## Triggers
-
-Business rules are enforced automatically.
-
-Examples include:
-
-✅ Automatic Lab Alerts
-
-Whenever a laboratory result exceeds its normal reference interval, a new alert is generated automatically.
-
----
-
-✅ Automatic IoT Alerts
-
-Incoming sensor measurements are validated immediately.
-
-Abnormal readings create emergency alerts without application-side code.
-
----
-
-✅ Data Integrity
-
-Multiple triggers maintain consistency across related modules and prevent invalid operations.
-
----
-
-## Views
-
-Several SQL Views are included to simplify reporting.
-
-Examples include:
-
-- Current Admissions
-- Patient History
-- Financial Summary
-- Inventory Overview
-- Active Alerts
-- IoT Dashboard
-
-These views are also consumed directly by the Flask application.
-
----
-
-# 🌐 Flask Web Application
-
-A complete web interface has been developed on top of the SQL Server database.
-
-The application is built using:
-
-- Flask
-- SQLAlchemy
-- Jinja2
-- Bootstrap
-- Microsoft SQL Server
-
-```
-Browser
-    │
-Flask
-    │
-SQLAlchemy
-    │
-SQL Server
-```
-
-Main modules include:
-
-- Dashboard
-- Patients
-- Staff
-- Admissions
-- Appointments
-- Laboratory
-- Pharmacy
-- Inventory
-- Financial
-- IoT Monitoring
-
-The web interface communicates directly with the relational database without requiring any additional middleware.
-
----
-
-# 🗺 Database Schema
-
-The Hospital Information System is composed of **34 normalized tables** distributed across nine major modules.
-
-The schema follows relational database best practices including:
-
-- Primary & Foreign Keys
-- CHECK Constraints
-- UNIQUE Constraints
-- Default Values
-- Cascading Relationships
-- Junction Tables
-- ISA Inheritance
-- Transaction Tables
-
----
-
-## Entity Relationship Diagram
-
-The complete ER Diagram illustrates all entities, relationships, cardinalities and foreign key dependencies.
-
-<p align="center">
-  <img src="ER diagram.png" width="100%">
-</p>
-
----
-
-# 🧠 Design Decisions
-
-| # | Decision | Reason |
-|---|----------|--------|
-| 1 | National ID as Patient PK | Natural immutable identifier that uniquely identifies every patient |
-| 2 | One Medical Record per Patient | Enforced using UNIQUE constraint |
-| 3 | ISA inheritance for Employees | Eliminates nullable columns while keeping subtype-specific attributes |
-| 4 | Separate transaction tables | Inventory, payments, transfers and logs preserve complete history |
-| 5 | Appointment OR Admission model | Clinical services support both outpatient and inpatient workflows |
-| 6 | Trigger-based alert generation | Critical events are generated automatically inside SQL Server |
-| 7 | Configurable IoT thresholds | Supports both hospital-wide and patient-specific monitoring |
-| 8 | Reference tables | Lookup values are normalized to eliminate duplication |
-| 9 | Identity keys | Simplifies joins while keeping relationships consistent |
-|10 | SQL business logic | Procedures, Functions and Triggers keep application logic inside the database |
-
----
-
-# 📂 Project Structure
-
-```
-HIS_Database
-│
-├── ER diagram.png
-│
-├── SQL
-│   ├── 01_create_tables.sql
-│   ├── 02_constraints.sql
-│   ├── 03_triggers.sql
-│   ├── 04_procedures.sql
-│   ├── 05_functions.sql
-│   ├── 06_views.sql
-│   └── 07_sample_data.sql
-│
-├── hospital-web
-│   ├── app
-│   ├── templates
-│   ├── static
-│   ├── models
-│   ├── blueprints
-│   ├── config.py
-│   └── run.py
-│
-└── README.md
-```
-
----
-
-# 📊 Sample Data
-
-The project includes a comprehensive sample dataset designed to demonstrate every major workflow.
-
-Sample records include:
-
-- Patients
-- Medical Records
-- Departments
-- Staff
-- Doctors
-- Nurses
-- Admissions
-- Beds
-- Appointments
-- Diagnoses
-- Laboratory Requests
-- Lab Results
-- Critical Alerts
-- Prescriptions
-- Drug Interactions
-- Inventory Transactions
-- Invoices
-- Payments
-- Insurance Plans
-- IoT Devices
-- Sensor Logs
-- Smart Alerts
-
-The provided dataset enables the Flask application to display realistic dashboards, reports, patient histories, laboratory alerts, inventory status and financial information immediately after installation.
-
----
-
-# 🚀 Getting Started
-
-## Requirements
+### Prerequisites
 
 - Microsoft SQL Server 2019+
 - SQL Server Management Studio (SSMS)
-- Python 3.11+
-- Flask
 
----
-
-## Clone Repository
+### Installation
 
 ```bash
-git clone https://github.com/mostafa06saeedi/HIS_Database.git
+git clone https://github.com/mostafa06saeedi/DB-Project.git
 ```
 
----
+Open SSMS, connect to your server, and run:
 
-## Database Setup
-
-Run the SQL scripts in the following order:
-
-```
-01_create_tables.sql
-
-02_constraints.sql
-
-03_triggers.sql
-
-04_procedures.sql
-
-05_functions.sql
-
-06_views.sql
-
-07_sample_data.sql
+```sql
+CREATE DATABASE HospitalDB;
+GO
+USE HospitalDB;
+GO
+-- Execute schema.sql
 ```
 
----
+Verify all tables were created:
 
-## Flask Setup
-
-```bash
-cd hospital-web
-
-pip install -r requirements.txt
-
-python run.py
+```sql
+SELECT COUNT(*) AS table_count
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE';
+-- Expected: 34
 ```
 
-Then open
 
-```
-http://127.0.0.1:5000
-```
+## 🔮 Phase 2 Roadmap
 
----
-
-# 📈 Implemented Features
-
-## Database
-
-- ✔ 34 Normalized Tables
-- ✔ Primary & Foreign Keys
-- ✔ CHECK Constraints
-- ✔ UNIQUE Constraints
-- ✔ Default Constraints
-- ✔ Transactions
-- ✔ Views
-- ✔ Stored Procedures
-- ✔ User Defined Functions
-- ✔ Triggers
-- ✔ Sample Data
+| Feature | Description |
+|---------|-------------|
+| Drug interaction tracking | `druginteraction` table linking pairs of drugs with severity |
+| Smoking history | Add `smokingHistory` field to `medicalrecord` |
+| Equipment inventory | Extend `storage_transaction` to cover non-drug items |
+| Multi-insurance support | Replace direct FK with `PatientInsurance` junction table |
+| Flask web application | Front-end interface built on top of this schema |
+| Analytics views | Bed occupancy, alert frequency, lab result trends |
 
 ---
 
-## Hospital Modules
+## 👥 Team
 
-- ✔ Patient Management
-- ✔ Medical Records
-- ✔ Staff Management
-- ✔ Admissions
-- ✔ Appointments
-- ✔ Laboratory
-- ✔ Pharmacy
-- ✔ Inventory
-- ✔ Financial System
-- ✔ Insurance
-- ✔ IoT Monitoring
-- ✔ Smart Alerts
+* 👤 [Amir Mohammad Mofateh](https://github.com/AMiR-Mofateh)
+* 👤 [Koorosh Motazed Keyvani](https://github.com/ImKoorosh)
+* 👤 [Mostafa Saeedi](https://github.com/mostafa06saeedi)
 
 ---
 
-## Web Application
-
-- ✔ Flask
-- ✔ SQLAlchemy
-- ✔ Bootstrap UI
-- ✔ Dashboard
-- ✔ CRUD Pages
-- ✔ Reporting Views
-- ✔ SQL Server Integration
-
----
-
-# 📚 Technologies
-
-<p align="center">
-
-<img src="https://skillicons.dev/icons?i=python,flask,bootstrap,html,css,git,github"/>
-
-</p>
-
-**Database**
-
-- Microsoft SQL Server
-
-**Backend**
-
-- Flask
-- SQLAlchemy
-
-**Frontend**
-
-- HTML
-- CSS
-- Bootstrap
-- Jinja2
-
----
-
-# 👥 Team
-
-| Name | GitHub |
-|------|--------|
-| Amir Mohammad Mofateh | https://github.com/AMiR-Mofateh |
-| Koorosh Motazed Keyvani | https://github.com/ImKoorosh |
-| Mostafa Saeedi | https://github.com/mostafa06saeedi |
-
----
-
-# ⭐ Project Highlights
-
-- Enterprise-style Hospital Information System
-- Fully normalized relational database
-- SQL Server implementation
-- Real clinical workflow modeling
-- Trigger-based automation
-- Stored Procedures & Functions
-- IoT monitoring subsystem
-- Financial management
-- Inventory tracking
-- Flask web interface
-- Ready-to-use sample database
-- Clean modular architecture
-
----
 
 <div align="center">
-
-### 🏥 Hospital Information System
-
-**Final Database Project**
-
-Built with ❤️ using
-
-**SQL Server · Flask · SQLAlchemy · Bootstrap**
-
-If you found this project useful, consider giving it a ⭐ on GitHub.
-
+  <sub>Database Design 1 · Final Project · Phase 1</sub>
 </div>
