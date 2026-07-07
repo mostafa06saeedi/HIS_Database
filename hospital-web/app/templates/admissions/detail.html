@@ -1,0 +1,79 @@
+{% extends "shared/base.html" %}
+{% block title %}Admission #{{ admission.id }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow mono">Admission #{{ admission.id }}</p>
+    <h1>{{ admission.patient.name if admission.patient else 'Unknown patient' }}</h1>
+  </div>
+  <span class="tag {{ '' if admission.is_active else 'tag-resolved' }}">{{ 'active' if admission.is_active else 'discharged' }}</span>
+</div>
+
+<div class="panel">
+  <div class="kv-grid">
+    <div class="kv"><span class="kv-label">Bed</span><span class="kv-value mono">{{ admission.bedID or '—' }}</span></div>
+    <div class="kv"><span class="kv-label">Physician</span><span class="kv-value">{{ admission.employee.name if admission.employee else '—' }}</span></div>
+    <div class="kv"><span class="kv-label">Entry date</span><span class="kv-value mono">{{ admission.entrydate or '—' }}</span></div>
+    <div class="kv"><span class="kv-label">Exit date</span><span class="kv-value mono">{{ admission.exitdate or '—' }}</span></div>
+    <div class="kv"><span class="kv-label">Reason</span><span class="kv-value">{{ admission.reason or '—' }}</span></div>
+    <div class="kv"><span class="kv-label">Linked appointment</span><span class="kv-value mono">{{ admission.appointmentID or '—' }}</span></div>
+  </div>
+</div>
+
+{% if admission.is_active %}
+<div class="split">
+  <div class="panel">
+    <p class="section-title">Transfer to another bed</p>
+    <form method="post" action="{{ url_for('admissions.transfer', admission_id=admission.id) }}">
+      <div class="field">
+        <label>Destination bed</label>
+        <select name="toBedID">
+          {% for bed_id, label in free_beds %}
+          <option value="{{ bed_id }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label>Reason</label>
+        <input type="text" name="reason" placeholder="e.g. moved to ICU">
+      </div>
+      <button class="btn btn-sm" type="submit">Transfer patient</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <p class="section-title">Discharge</p>
+    <form method="post" action="{{ url_for('admissions.discharge', admission_id=admission.id) }}">
+      {{ discharge_form.hidden_tag() }}
+      <div class="field">
+        <label>{{ discharge_form.exitdate.label.text }}</label>
+        {{ discharge_form.exitdate() }}
+      </div>
+      {{ discharge_form.submit(class="btn btn-sm btn-danger") }}
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <p class="section-title">Transfer history</p>
+  {% if transfers %}
+  <table class="data-table">
+    <thead><tr><th>Date</th><th>From bed</th><th>To bed</th><th>Reason</th></tr></thead>
+    <tbody>
+      {% for t in transfers %}
+      <tr>
+        <td class="mono">{{ t.date or '—' }} {{ t.time or '' }}</td>
+        <td class="mono">{{ t.fromBedID or '—' }}</td>
+        <td class="mono">{{ t.toBedID or '—' }}</td>
+        <td>{{ t.reason or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No transfers during this admission.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

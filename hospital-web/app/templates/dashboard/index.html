@@ -1,0 +1,137 @@
+{% extends "shared/base.html" %}
+{% block title %}Ops Overview{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Live status</p>
+    <h1>Ops Overview</h1>
+  </div>
+  <span class="clock mono">{{ now.strftime('%a %d %b · %H:%M') }}</span>
+</div>
+
+<div class="vitals-strip">
+  <div class="vital">
+    <span class="vital-label">Beds free</span>
+    <span class="vital-value mono status-good">{{ bed_free }}</span>
+    <span class="vital-sub">of {{ bed_total }} total</span>
+  </div>
+  <div class="vital">
+    <span class="vital-label">Occupied</span>
+    <span class="vital-value mono">{{ bed_occupied }}</span>
+    <span class="vital-sub">{{ bed_reserved }} reserved</span>
+  </div>
+  <div class="vital {{ 'vital-alarm' if critical_alert_count > 0 }}">
+    <span class="vital-label">Critical alerts</span>
+    <span class="vital-value mono status-critical">{{ critical_alert_count }}</span>
+    <span class="vital-sub">open right now</span>
+  </div>
+  <div class="vital">
+    <span class="vital-label">Today's admissions</span>
+    <span class="vital-value mono status-cyan">{{ todays_admission_count }}</span>
+    <span class="vital-sub">since midnight</span>
+  </div>
+  <div class="vital">
+    <span class="vital-label">Today's appointments</span>
+    <span class="vital-value mono status-cyan">{{ todays_appointment_count }}</span>
+    <span class="vital-sub">scheduled</span>
+  </div>
+</div>
+
+<div class="split">
+  <div class="panel board-panel">
+    <div class="panel-head">
+      <h2>Bed Board</h2>
+      <div class="legend">
+        <span><i class="dot dot-good"></i>Free</span>
+        <span><i class="dot dot-warn"></i>Reserved</span>
+        <span><i class="dot dot-critical"></i>Occupied</span>
+      </div>
+    </div>
+
+    {% if board %}
+      {% for group in board %}
+      <div class="bed-group">
+        <p class="bed-group-label">{{ group.department.name }} <span class="mono">· {{ group.department.type or '' }}</span></p>
+        <div class="bed-grid">
+          {% for cell in group.cells %}
+          <div class="bed-cell status-{{ (cell.bed.status or 'free')|lower }}" title="Bed {{ cell.bed.id }} · {{ cell.bed.room or '' }}">
+            <span class="bed-cell-id mono">{{ cell.bed.id }}</span>
+            {% if cell.patient_name %}
+              <span class="bed-cell-patient">{{ cell.patient_name.split(' ')[0] }}</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p>No beds registered yet.</p>
+        <p class="empty-sub">Add rows to the <span class="mono">bed</span> table to see the board fill in.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="panel feed-panel">
+    <div class="panel-head">
+      <h2>Alert Feed</h2>
+      <a href="{{ url_for('iot.alerts') }}" class="panel-link">View all →</a>
+    </div>
+
+    {% if active_alerts %}
+    <ul class="alert-feed">
+      {% for a in active_alerts %}
+      <li class="alert-row severity-{{ (a.severity or 'warning')|lower }}">
+        <span class="dot dot-{{ 'critical' if (a.severity|lower == 'critical') else ('warn' if (a.severity|lower == 'moderate') else 'good') }} {{ 'pulse' if a.severity|lower == 'critical' }}"></span>
+        <div class="alert-row-body">
+          <span class="alert-row-title">
+            {% if a.log and a.log.device %}{{ a.log.device.type }} · {{ a.log.type }}{% else %}Device alert{% endif %}
+          </span>
+          <span class="alert-row-meta mono">
+            {{ a.createdtime.strftime('%H:%M') if a.createdtime else '' }}
+            {% if a.log %} · {{ '%.1f'|format(a.log.value) if a.log.value is not none else '' }} {{ a.log.unit or '' }}{% endif %}
+          </span>
+        </div>
+        {% set status_css = 'resolved' if a.status == 'Resolved' else ('acknowledged' if a.status == 'ConfirmedByNurse' else 'unreviewed') %}
+        <span class="tag tag-{{ status_css }}">{{ a.status or 'Unreviewed' }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <p>No open alerts.</p>
+      <p class="empty-sub">Everything's within threshold.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Latest Sensor Readings</h2>
+    <a href="{{ url_for('iot.devices') }}" class="panel-link">All devices →</a>
+  </div>
+  {% if latest_logs %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Device</th><th>Measure</th><th>Value</th><th>Timestamp</th></tr>
+    </thead>
+    <tbody>
+      {% for log in latest_logs %}
+      <tr>
+        <td class="mono">#{{ log.deviceID }} · {{ log.device.type if log.device else '—' }}</td>
+        <td>{{ log.type }}</td>
+        <td class="mono">{{ '%.1f'|format(log.value) if log.value is not none else '—' }} {{ log.unit or '' }}</td>
+        <td class="mono">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No sensor logs yet.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

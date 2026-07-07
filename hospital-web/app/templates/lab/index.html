@@ -1,0 +1,41 @@
+{% extends "shared/base.html" %}
+{% block title %}Lab & Imaging{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Module 5 · Lab & Imaging</p>
+    <h1>Lab & Imaging Requests</h1>
+    <p class="page-sub">Flow: Labimagingrequest → labresult → (if out of range) labalert → doctor.</p>
+  </div>
+  <a href="{{ url_for('lab.alerts') }}" class="btn {{ 'btn-danger' if open_alert_count > 0 else 'btn-ghost' }}">
+    {{ open_alert_count }} open lab alert{{ 's' if open_alert_count != 1 else '' }} →
+  </a>
+</div>
+
+<div class="panel">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr>{% for key, label in columns %}<th>{{ label }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for key, label in columns %}
+        <td class="{{ 'mono' if row.get('_mono_' + key) else '' }}">{{ row.get(key, '—') }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No lab or imaging requests yet.</p></div>
+  {% endif %}
+</div>
+
+<div class="build-note">
+  <strong>Extend this module —</strong> add a detail page per request showing the full
+  labresult row plus its isCritical reference range.
+</div>
+{% endblock %}
