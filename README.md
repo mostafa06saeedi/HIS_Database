@@ -6,8 +6,10 @@
 ![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-black?style=for-the-badge&logo=flask&logoColor=white)
 ![Phase](https://img.shields.io/badge/Phase%201-Complete-28a745?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Tables](https://img.shields.io/badge/Tables-37-0366d6?style=for-the-badge)
 ![Modules](https://img.shields.io/badge/Modules-9-6f42c1?style=for-the-badge)
+
 
 *A fully relational, fully operational Hospital Information System — schema, business logic, security, and a working web console — built as if there were no Phase 2.*
 
@@ -246,6 +248,21 @@ Everything the brief asked for is implemented and operational. What's genuinely 
 * 👤 [Mostafa Saeedi](https://github.com/mostafa06saeedi)
 
 ---
+
+
+<div align="center">
+
+### 🏥 Hospital Information System
+
+**Final Database Project**
+
+Built with ❤️ using
+
+**SQL Server · Flask · SQLAlchemy · Bootstrap**
+
+If you found this project useful, consider giving it a ⭐ on GitHub.
+
+</div>
 
 <div align="center">
   <sub>Database Design 1 · Final Project · Phase 1 — complete, not a placeholder for Phase 2</sub>
