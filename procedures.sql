@@ -1,22 +1,29 @@
+-- PATIENT MANAGEMENT PROCEDURES
+-- Procedure: Registers a new patient in the system
+-- Creates both a patient record and an empty medical record
+-- Uses transaction to ensure both inserts succeed or fail together
+-- Parameters: All patient demographic information
 CREATE PROCEDURE [sp_RegisterPatient]
-  @nationalID  nvarchar(255),
-  @insuranceID int = NULL,
-  @name        nvarchar(255),
-  @datebirth   date = NULL,
-  @gender      nvarchar(255) = NULL,
-  @phone       nvarchar(255) = NULL,
-  @address     nvarchar(255) = NULL
+  @nationalID  nvarchar(255),     -- Primary key, unique patient identifier
+  @insuranceID int = NULL,        -- Optional insurance reference
+  @name        nvarchar(255),     -- Patient full name (required)
+  @datebirth   date = NULL,       -- Date of birth
+  @gender      nvarchar(255) = NULL,  -- Male/Female
+  @phone       nvarchar(255) = NULL,  -- Contact number
+  @address     nvarchar(255) = NULL   -- Residential address
 AS
 BEGIN
   SET NOCOUNT ON
-  SET XACT_ABORT ON
+  SET XACT_ABORT ON  -- Automatically rolls back on error
 
   BEGIN TRY
     BEGIN TRANSACTION
 
+    -- Insert patient demographics
     INSERT INTO [patient] ([nationalID], [insuranceID], [name], [datebirth], [gender], [phone], [address])
     VALUES (@nationalID, @insuranceID, @name, @datebirth, @gender, @phone, @address)
 
+    -- Create empty medical record for the patient
     INSERT INTO [medicalrecord] ([patientID])
     VALUES (@nationalID)
 
@@ -24,23 +31,28 @@ BEGIN
   END TRY
   BEGIN CATCH
     IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
-    THROW
+    THROW  -- Re-raise the error
   END CATCH
 END
 GO
 
+-- Procedure: Updates patient medical record information
+-- Uses ISNULL to only update fields that were provided (non-NULL)
+-- Allows partial updates without requiring all fields
+-- Parameters: Patient ID and medical history fields
 CREATE PROCEDURE [sp_UpdateMedicalRecord]
-  @patientID          nvarchar(255),
-  @preMedicalRecord   nvarchar(255) = NULL,
-  @predrugconsumption nvarchar(255) = NULL,
-  @smokingHistory     nvarchar(255) = NULL,
-  @weight             float = NULL,
-  @height             float = NULL,
-  @bloodpressure      nvarchar(255) = NULL
+  @patientID          nvarchar(255),       -- Patient to update
+  @preMedicalRecord   nvarchar(255) = NULL,  -- Previous medical history
+  @predrugconsumption nvarchar(255) = NULL,  -- Previous medication usage
+  @smokingHistory     nvarchar(255) = NULL,  -- Smoking status
+  @weight             float = NULL,          -- Current weight in kg
+  @height             float = NULL,          -- Current height in cm
+  @bloodpressure      nvarchar(255) = NULL   -- Blood pressure reading
 AS
 BEGIN
   SET NOCOUNT ON
 
+  -- Only update fields that were provided (non-NULL values)
   UPDATE [medicalrecord]
   SET [preMedicalRecord]   = ISNULL(@preMedicalRecord, [preMedicalRecord]),
       [predrugconsumption] = ISNULL(@predrugconsumption, [predrugconsumption]),
@@ -51,29 +63,39 @@ BEGIN
   WHERE [patientID] = @patientID
 END
 GO
-
+-- DIAGNOSIS PROCEDURES
+-- Procedure: Records a doctor's diagnosis for a patient
+-- Links to either an appointment OR an admission (must have at least one)
+-- Uses ICD disease codes for standardized diagnosis recording
+-- Parameters: Appointment or Admission ID, ICD code, and description
 CREATE PROCEDURE [sp_AddDoctorDiagnosis]
-  @appointmentID int = NULL,
-  @admissionID   int = NULL,
-  @icdID         int,
-  @description   nvarchar(255) = NULL
+  @appointmentID int = NULL,      -- Optional: diagnosis from appointment
+  @admissionID   int = NULL,      -- Optional: diagnosis from admission
+  @icdID         int,             -- ICD disease code reference (required)
+  @description   nvarchar(255) = NULL  -- Additional diagnosis notes
 AS
 BEGIN
   SET NOCOUNT ON
 
+  -- Insert the diagnosis (CHECK constraint ensures at least one source ID is provided)
   INSERT INTO [doctordiagnosis] ([appointmentID], [admissionID], [icdID], [description])
   VALUES (@appointmentID, @admissionID, @icdID, @description)
 END
 GO
-
+-- APPOINTMENT MANAGEMENT PROCEDURES
+-- Procedure: Books a new appointment for a patient
+-- Automatically sets status to 'Scheduled'
+-- Returns the new appointment ID via OUTPUT parameter
+-- Conflict prevention handled by trigger trg_appointment_prevent_conflict
+-- Parameters: Doctor, patient, department, date, time, and appointment type
 CREATE PROCEDURE [sp_BookAppointment]
-  @employeeID       int,
-  @patientID        nvarchar(255),
-  @departmentID     int,
-  @date             date,
-  @time             time,
-  @appointment_type nvarchar(255) = N'InPerson',
-  @newAppointmentID int OUTPUT
+  @employeeID       int,                  -- Doctor or staff ID
+  @patientID        nvarchar(255),        -- Patient identifier
+  @departmentID     int,                  -- Department where appointment occurs
+  @date             date,                 -- Appointment date
+  @time             time,                 -- Appointment time
+  @appointment_type nvarchar(255) = N'InPerson',  -- InPerson or Online
+  @newAppointmentID int OUTPUT            -- Returns the generated appointment ID
 AS
 BEGIN
   SET NOCOUNT ON
@@ -82,9 +104,11 @@ BEGIN
   BEGIN TRY
     BEGIN TRANSACTION
 
+    -- Insert the appointment
     INSERT INTO [appointment] ([employeeID], [patientID], [departmentID], [date], [time], [status], [appointment_type])
     VALUES (@employeeID, @patientID, @departmentID, @date, @time, N'Scheduled', @appointment_type)
 
+    -- Retrieve the ID of the newly created appointment
     SELECT TOP 1 @newAppointmentID = [id]
     FROM [appointment]
     WHERE [employeeID] = @employeeID
@@ -103,6 +127,10 @@ BEGIN
 END
 GO
 
+-- Procedure: Cancels an existing appointment
+-- Sets status to 'Cancelled' (soft delete)
+-- Keeps the record for auditing and history
+-- Parameters: Appointment ID to cancel
 CREATE PROCEDURE [sp_CancelAppointment]
   @appointmentID int
 AS
@@ -115,6 +143,10 @@ BEGIN
 END
 GO
 
+-- Procedure: Reschedules an existing appointment to a new date/time
+-- Validates that the new slot is available for the doctor
+-- Prevents conflicts with existing appointments (excluding the current one)
+-- Parameters: Appointment ID, new date, and new time
 CREATE PROCEDURE [sp_RescheduleAppointment]
   @appointmentID int,
   @newDate       date,
@@ -123,9 +155,11 @@ AS
 BEGIN
   SET NOCOUNT ON
 
+  -- Get the doctor assigned to this appointment
   DECLARE @employeeID int
   SELECT @employeeID = [employeeID] FROM [appointment] WHERE [id] = @appointmentID
 
+  -- Check if the doctor is already booked at the new time (excluding this appointment)
   IF EXISTS (
     SELECT 1 FROM [appointment]
     WHERE [employeeID] = @employeeID AND [date] = @newDate AND [time] = @newTime
@@ -136,19 +170,26 @@ BEGIN
     RETURN
   END
 
+  -- Update the appointment with new date, time, and status
   UPDATE [appointment]
   SET [date] = @newDate, [time] = @newTime, [status] = N'Rescheduled'
   WHERE [id] = @appointmentID
 END
 GO
-
+-- ADMISSION & TRANSFER PROCEDURES
+-- Procedure: Admits a patient to the hospital
+-- Assigns a bed and admitting doctor
+-- Automatically sets entry date to current date
+-- Returns the new admission ID and department statistics
+-- Bed status is handled by trigger trg_admission_bed_occupy
+-- Parameters: Patient ID, bed ID, doctor ID, optional appointment ID, and reason
 CREATE PROCEDURE [sp_AdmitPatient]
-  @patientID      nvarchar(255),
-  @bedID          int,
-  @employeeID     int,
-  @appointmentID  int = NULL,
-  @reason         nvarchar(255) = NULL,
-  @newAdmissionID int OUTPUT
+  @patientID      nvarchar(255),        -- Patient being admitted
+  @bedID          int,                  -- Bed to assign
+  @employeeID     int,                  -- Admitting doctor/staff
+  @appointmentID  int = NULL,           -- Optional related appointment
+  @reason         nvarchar(255) = NULL, -- Reason for admission
+  @newAdmissionID int OUTPUT            -- Returns the admission ID
 AS
 BEGIN
   SET NOCOUNT ON
@@ -157,6 +198,7 @@ BEGIN
   BEGIN TRY
     BEGIN TRANSACTION
 
+    -- Create the admission record
     INSERT INTO [admission] ([patientID], [bedID], [employeeID], [appointmentID], [entrydate], [reason])
     VALUES (@patientID, @bedID, @employeeID, @appointmentID, GETDATE(), @reason)
 
@@ -169,6 +211,7 @@ BEGIN
     THROW
   END CATCH
 
+  -- Return department bed statistics after admission
   SELECT
     [d].[id]                                  AS departmentID,
     [d].[name]                                AS departmentName,
@@ -183,20 +226,27 @@ BEGIN
 END
 GO
 
+-- Procedure: Transfers a patient from one bed to another
+-- Uses fn_GetPatientCurrentBed to determine current bed
+-- Creates a patienttransfer record with current date and time
+-- Bed status updates handled by trigger trg_patienttransfer_bed_update
+-- Parameters: Admission ID, destination bed ID, and optional reason
 CREATE PROCEDURE [sp_TransferPatient]
-  @admissionID int,
-  @toBedID     int,
-  @reason      nvarchar(255) = NULL
+  @admissionID int,                 -- The admission to transfer
+  @toBedID     int,                 -- Destination bed
+  @reason      nvarchar(255) = NULL -- Reason for transfer
 AS
 BEGIN
   SET NOCOUNT ON
   SET XACT_ABORT ON
 
+  -- Get the current bed for this admission
   DECLARE @fromBedID int = dbo.fn_GetPatientCurrentBed(@admissionID)
 
   BEGIN TRY
     BEGIN TRANSACTION
 
+    -- Record the transfer with current date and time
     INSERT INTO [patienttransfer] ([date], [time], [reason], [admissionID], [fromBedID], [toBedID])
     VALUES (CAST(GETDATE() AS date), CAST(GETDATE() AS time), @reason, @admissionID, @fromBedID, @toBedID)
 
@@ -206,376 +256,5 @@ BEGIN
     IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
     THROW
   END CATCH
-END
-GO
-
-CREATE PROCEDURE [sp_DischargePatient]
-  @admissionID int,
-  @exitdate    date = NULL
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  UPDATE [admission]
-  SET [exitdate] = ISNULL(@exitdate, GETDATE())
-  WHERE [id] = @admissionID AND [exitdate] IS NULL
-END
-GO
-
-CREATE PROCEDURE [sp_RequestLabImaging]
-  @employeeID    int,
-  @appointmentID int = NULL,
-  @admissionID   int = NULL,
-  @type          nvarchar(255),
-  @newRequestID  int OUTPUT
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [Labimagingrequest] ([employeeID], [appointmentID], [admissionID], [type], [date], [status])
-  VALUES (@employeeID, @appointmentID, @admissionID, @type, GETDATE(), N'Requested')
-
-  SET @newRequestID = SCOPE_IDENTITY()
-END
-GO
-
-CREATE PROCEDURE [sp_RecordLabResult]
-  @LabimagingrequestID  int,
-  @reportedbyemployeeID int,
-  @isCriticalID         int = NULL,
-  @value                nvarchar(255),
-  @description          nvarchar(255) = NULL,
-  @newLabResultID       int OUTPUT
-AS
-BEGIN
-  SET NOCOUNT ON
-  SET XACT_ABORT ON
-
-  BEGIN TRY
-    BEGIN TRANSACTION
-
-    INSERT INTO [labresult] ([reportedbyemployeeID], [isCritical], [LabimagingrequestID], [value], [status], [date], [description])
-    VALUES (@reportedbyemployeeID, @isCriticalID, @LabimagingrequestID, @value, N'Completed', GETDATE(), @description)
-
-    SET @newLabResultID = SCOPE_IDENTITY()
-
-    UPDATE [Labimagingrequest] SET [status] = N'Completed' WHERE [id] = @LabimagingrequestID
-
-    COMMIT TRANSACTION
-  END TRY
-  BEGIN CATCH
-    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
-    THROW
-  END CATCH
-END
-GO
-
-CREATE PROCEDURE [sp_AcknowledgeLabAlert]
-  @labAlertID int
-AS
-BEGIN
-  SET NOCOUNT ON
-  UPDATE [labalert] SET [status] = N'ConfirmedByNurse' WHERE [id] = @labAlertID
-END
-GO
-
-CREATE PROCEDURE [sp_ResolveLabAlert]
-  @labAlertID int
-AS
-BEGIN
-  SET NOCOUNT ON
-  UPDATE [labalert] SET [status] = N'Resolved', [resolvedAt] = GETDATE() WHERE [id] = @labAlertID
-END
-GO
-
-CREATE PROCEDURE [sp_IssuePrescription]
-  @patientID          nvarchar(255),
-  @employeeID         int,
-  @appointmentID      int = NULL,
-  @admissionID        int = NULL,
-  @newPrescriptionID  int OUTPUT
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [prescription] ([patientID], [employeeID], [appointmentID], [admissionID], [date], [status])
-  VALUES (@patientID, @employeeID, @appointmentID, @admissionID, GETDATE(), N'Pending')
-
-  SET @newPrescriptionID = SCOPE_IDENTITY()
-END
-GO
-
-CREATE PROCEDURE [sp_AddPrescriptionItem]
-  @prescriptionID int,
-  @drugID         int,
-  @dose           nvarchar(255),
-  @duration       nvarchar(255),
-  @quantity       int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  DECLARE @conflictDrug nvarchar(255), @severity nvarchar(50)
-
-  SELECT TOP 1 @conflictDrug = [d].[name], @severity = [dbo].[fn_CheckDrugInteraction](@drugID, [pi].[drugID])
-  FROM [prescriptionitem] AS [pi]
-  INNER JOIN [drug] AS [d] ON [d].[id] = [pi].[drugID]
-  WHERE [pi].[prescriptionID] = @prescriptionID
-    AND [dbo].[fn_CheckDrugInteraction](@drugID, [pi].[drugID]) IS NOT NULL
-
-  IF @severity = N'Severe'
-  BEGIN
-    RAISERROR(N'Severe drug interaction detected with %s; prescription item rejected.', 16, 1, @conflictDrug)
-    RETURN
-  END
-  ELSE IF @severity IS NOT NULL
-  BEGIN
-    RAISERROR(N'Warning: drug interaction (%s) detected with %s.', 5, 1, @severity, @conflictDrug) WITH NOWAIT
-  END
-
-  INSERT INTO [prescriptionitem] ([prescriptionID], [drugID], [dose], [duration], [quantity])
-  VALUES (@prescriptionID, @drugID, @dose, @duration, @quantity)
-END
-GO
-
-CREATE PROCEDURE [sp_DispenseMedication]
-  @prescriptionID int,
-  @storageID      int
-AS
-BEGIN
-  SET NOCOUNT ON
-  SET XACT_ABORT ON
-
-  BEGIN TRY
-    BEGIN TRANSACTION
-
-    INSERT INTO [storage_transaction] ([drugID], [storageID], [date], [type], [quantity], [reason])
-    SELECT [drugID], @storageID, GETDATE(), N'OUT', [quantity], N'Dispense prescription #' + CAST(@prescriptionID AS nvarchar(20))
-    FROM [prescriptionitem]
-    WHERE [prescriptionID] = @prescriptionID
-
-    UPDATE [prescription] SET [status] = N'Dispensed' WHERE [id] = @prescriptionID
-
-    COMMIT TRANSACTION
-  END TRY
-  BEGIN CATCH
-    IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
-    THROW
-  END CATCH
-END
-GO
-
-CREATE PROCEDURE [sp_ReceiveStock]
-  @drugID    int,
-  @storageID int,
-  @quantity  int,
-  @reason    nvarchar(255) = N'Restock'
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [storage_transaction] ([drugID], [storageID], [date], [type], [quantity], [reason])
-  VALUES (@drugID, @storageID, GETDATE(), N'IN', @quantity, @reason)
-END
-GO
-
-CREATE PROCEDURE [sp_AddDrugInteraction]
-  @drugID1      int,
-  @drugID2      int,
-  @severity     nvarchar(50),
-  @description  nvarchar(255) = NULL
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  IF @drugID1 = @drugID2
-  BEGIN
-    RAISERROR(N'A drug cannot interact with itself.', 16, 1)
-    RETURN
-  END
-
-  IF EXISTS (
-    SELECT 1 FROM [druginteraction]
-    WHERE ([drugID1] = @drugID1 AND [drugID2] = @drugID2)
-       OR ([drugID1] = @drugID2 AND [drugID2] = @drugID1)
-  )
-  BEGIN
-    RAISERROR(N'This drug interaction has already been recorded.', 16, 1)
-    RETURN
-  END
-
-  INSERT INTO [druginteraction] ([drugID1], [drugID2], [severity], [description])
-  VALUES (@drugID1, @drugID2, @severity, @description)
-END
-GO
-  
-CREATE PROCEDURE [sp_AddInventoryItem]
-  @name      nvarchar(255),
-  @type      nvarchar(255),
-  @inventory int = 0
-AS
-BEGIN
-  SET NOCOUNT ON
-  INSERT INTO [storage] ([name], [inventory], [type])
-  VALUES (@name, @inventory, @type)
-END
-GO
-
-CREATE PROCEDURE [sp_CreateInvoice]
-  @patientID       nvarchar(255),
-  @admissionID     int = NULL,
-  @appointmentID   int = NULL,
-  @insuranceId     int = NULL,
-  @paymentmethodID int = NULL,
-  @newInvoiceID    int OUTPUT
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [invoice] ([patientID], [admissionID], [appointmentID], [insuranceId], [paymentmethodID], [total_amount], [status], [date])
-  VALUES (@patientID, @admissionID, @appointmentID, @insuranceId, @paymentmethodID, 0, N'Unpaid', GETDATE())
-
-  SET @newInvoiceID = SCOPE_IDENTITY()
-END
-GO
-
-CREATE PROCEDURE [sp_AddInvoiceItem]
-  @invoiceID   int,
-  @item        nvarchar(255),
-  @type        nvarchar(255),
-  @description nvarchar(255) = NULL,
-  @amount      float
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [invoiceitem] ([invoiceID], [item], [type], [description], [amount])
-  VALUES (@invoiceID, @item, @type, @description, @amount)
-END
-GO
-
-CREATE PROCEDURE [sp_RecordPayment]
-  @invoiceID       int,
-  @patientID       nvarchar(255),
-  @amount          float,
-  @paymentmethodID int = NULL,
-  @type            nvarchar(50) = N'Payment'
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [payment] ([invoiceID], [patientID], [paymentmethodID], [amount], [type], [date])
-  VALUES (@invoiceID, @patientID, @paymentmethodID, @amount, @type, GETDATE())
-END
-GO
-
-CREATE PROCEDURE [sp_RegisterIoTDevice]
-  @macaddress     nvarchar(255),
-  @type           nvarchar(255),
-  @newDeviceID    int OUTPUT
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [iotdevice] ([macaddress], [type], [status], [installationdate])
-  VALUES (@macaddress, @type, N'Active', GETDATE())
-
-  SET @newDeviceID = SCOPE_IDENTITY()
-END
-GO
-
-CREATE PROCEDURE [sp_AssignDeviceToPatient]
-  @iotdeviceID   int,
-  @patientID     nvarchar(255),
-  @admissionID   int = NULL,
-  @departmentID  int,
-  @bedID         int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [devicetransfer] ([patientID], [admissionID], [departmentID], [bedID], [iotdeviceID], [assignedAt])
-  VALUES (@patientID, @admissionID, @departmentID, @bedID, @iotdeviceID, GETDATE())
-END
-GO
-
-CREATE PROCEDURE [sp_UnassignDevice]
-  @iotdeviceID int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  UPDATE [devicetransfer]
-  SET [unassignedAt] = GETDATE()
-  WHERE [iotdeviceID] = @iotdeviceID AND [unassignedAt] IS NULL
-END
-GO
-
-CREATE PROCEDURE [sp_RecordDeviceLog]
-  @deviceID  int,
-  @type      nvarchar(255),
-  @value     float,
-  @unit      nvarchar(255) = NULL,
-  @timestamp datetime = NULL
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [logs] ([deviceID], [timestamp], [type], [value], [unit])
-  VALUES (@deviceID, ISNULL(@timestamp, GETDATE()), @type, @value, @unit)
-END
-GO
-
-CREATE PROCEDURE [sp_SetAlertThreshold]
-  @measurementType nvarchar(255),
-  @minValue        float = NULL,
-  @maxValue        float = NULL,
-  @severity        nvarchar(255) = N'Critical',
-  @isGlobal        bit = 1,
-  @employeeID      int = NULL,
-  @patientID       nvarchar(255) = NULL
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  INSERT INTO [AlertThreshold] ([measurementType], [minValue], [maxValue], [severity], [isGlobal], [employeeID], [patientID], [createdate])
-  VALUES (@measurementType, @minValue, @maxValue, @severity, @isGlobal, @employeeID, @patientID, GETDATE())
-END
-GO
-
-CREATE PROCEDURE [sp_AcknowledgeAlert]
-  @alertID    int,
-  @employeeID int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  UPDATE [alert]
-  SET [status] = N'ConfirmedByNurse', [acknowledgedbyemployeeID] = @employeeID
-  WHERE [id] = @alertID
-END
-GO
-
-CREATE PROCEDURE [sp_ResolveAlert]
-  @alertID int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  UPDATE [alert]
-  SET [status] = N'Resolved', [resolvedtime] = GETDATE()
-  WHERE [id] = @alertID
-END
-GO
-
-CREATE PROCEDURE [sp_AssignShift]
-  @employeeID int,
-  @shiftID    int
-AS
-BEGIN
-  SET NOCOUNT ON
-
-  IF NOT EXISTS (SELECT 1 FROM [employeeshift] WHERE [employeeID] = @employeeID AND [shiftID] = @shiftID)
-    INSERT INTO [employeeshift] ([employeeID], [shiftID]) VALUES (@employeeID, @shiftID)
 END
 GO
