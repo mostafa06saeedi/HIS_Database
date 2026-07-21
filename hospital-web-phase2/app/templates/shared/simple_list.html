@@ -1,0 +1,45 @@
+{% extends "shared/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">{{ eyebrow }}</p>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p class="page-sub">{{ subtitle }}</p>{% endif %}
+  </div>
+  <span class="count-pill">{{ rows|length }} record{{ 's' if rows|length != 1 else '' }}</span>
+</div>
+
+{% if extend_note %}
+<div class="build-note">
+  <strong>Extend this module —</strong> {{ extend_note }}
+</div>
+{% endif %}
+
+<div class="panel">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        {% for key, label in columns %}<th>{{ label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for key, label in columns %}
+        <td class="{{ 'mono' if row.get('_mono_' + key) else '' }}">{{ row.get(key, '—') }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No records yet.</p>
+    <p class="empty-sub">Rows will appear here once data exists in this table.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

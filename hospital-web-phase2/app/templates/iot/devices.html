@@ -1,0 +1,45 @@
+{% extends "shared/base.html" %}
+{% block title %}IoT Devices{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Module 9 · IoT & Smart Alerts</p>
+    <h1>Devices</h1>
+  </div>
+</div>
+
+<div class="panel">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr><th>ID</th><th>Type</th><th>MAC Address</th><th>Status</th><th>Current assignment</th><th>Installed</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr onclick="window.location='{{ url_for('iot.device_detail', device_id=row.device.id) }}'" style="cursor:pointer">
+        <td class="mono">#{{ row.device.id }}</td>
+        <td>{{ row.device.type or '—' }}</td>
+        <td class="mono">{{ row.device.macaddress or '—' }}</td>
+        <td>
+          <span class="tag {{ 'tag-resolved' if (row.device.status|lower == 'active') else ('tag-unreviewed' if (row.device.status|lower == 'inactive') else 'tag-acknowledged') }}">
+            {{ row.device.status or '—' }}
+          </span>
+        </td>
+        <td>
+          {% if row.assignment %}
+            {{ row.assignment.patient.name if row.assignment.patient else 'Bed ' + (row.assignment.bedID|string) }}
+          {% else %}
+            <span style="color:var(--text-dim)">unassigned</span>
+          {% endif %}
+        </td>
+        <td class="mono">{{ row.device.installationdate or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No devices registered yet.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
