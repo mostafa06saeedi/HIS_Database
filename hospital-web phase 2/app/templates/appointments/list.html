@@ -1,0 +1,84 @@
+{% extends "shared/base.html" %}
+{% block title %}Appointments{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Module 2 · Admissions & Appointments</p>
+    <h1>Appointments</h1>
+    <p class="page-sub">In-person and online bookings across every department. Check-in / start / complete actions feed the Phase 2 wait-time KPIs.</p>
+  </div>
+  <span class="count-pill">{{ appointments|length }} record{{ 's' if appointments|length != 1 else '' }}</span>
+</div>
+
+<div class="toolbar">
+  <a href="{{ url_for('appointments.index', status='all') }}" class="btn btn-sm {{ 'btn' if status_filter == 'all' else 'btn-ghost' }}">All</a>
+  <a href="{{ url_for('appointments.index', status='Scheduled') }}" class="btn btn-sm {{ 'btn' if status_filter == 'Scheduled' else 'btn-ghost' }}">Scheduled</a>
+  <a href="{{ url_for('appointments.index', status='Rescheduled') }}" class="btn btn-sm {{ 'btn' if status_filter == 'Rescheduled' else 'btn-ghost' }}">Rescheduled</a>
+  <a href="{{ url_for('appointments.index', status='Completed') }}" class="btn btn-sm {{ 'btn' if status_filter == 'Completed' else 'btn-ghost' }}">Completed</a>
+  <a href="{{ url_for('appointments.index', status='Cancelled') }}" class="btn btn-sm {{ 'btn' if status_filter == 'Cancelled' else 'btn-ghost' }}">Cancelled</a>
+</div>
+
+<div class="panel">
+  {% if appointments %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Patient</th><th>Department</th><th>Physician</th><th>Date · Time</th>
+        <th>Type</th><th>Status</th><th>Wait</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in appointments %}
+      <tr>
+        <td class="mono">#{{ a.id }}</td>
+        <td>{{ a.patient.name if a.patient else '—' }}</td>
+        <td>{{ a.department.name if a.department else '—' }}</td>
+        <td>{{ a.employee.name if a.employee else '—' }}</td>
+        <td class="mono">{{ a.date or '—' }} · {{ a.time or '—' }}</td>
+        <td>{{ a.appointment_type or '—' }}</td>
+        <td>
+          <span class="tag {{ 'tag-resolved' if a.status == 'Completed' else ('tag-unreviewed' if a.status == 'Cancelled' else '') }}">{{ a.status or '—' }}</span>
+        </td>
+        <td class="mono">
+          {% if a.wait_minutes is not none %}{{ a.wait_minutes }}m
+          {% elif a.checkInTime %}waiting…
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if a.status not in ['Completed', 'Cancelled'] %}
+            {% if not a.checkInTime %}
+            <form method="post" action="{{ url_for('appointments.check_in', appointment_id=a.id, status=status_filter) }}" style="display:inline">
+              <button class="btn btn-ghost btn-sm" type="submit">Check in</button>
+            </form>
+            {% elif not a.serviceStartTime %}
+            <form method="post" action="{{ url_for('appointments.start_service', appointment_id=a.id, status=status_filter) }}" style="display:inline">
+              <button class="btn btn-ghost btn-sm" type="submit">Start visit</button>
+            </form>
+            {% elif not a.checkOutTime %}
+            <form method="post" action="{{ url_for('appointments.check_out', appointment_id=a.id, status=status_filter) }}" style="display:inline">
+              <button class="btn btn-sm" type="submit">Complete</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No appointments to show.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="build-note">
+  <strong>Phase 2 —</strong> Check in / Start visit / Complete populate
+  <span class="mono">checkInTime</span>, <span class="mono">serviceStartTime</span>,
+  and <span class="mono">checkOutTime</span> on the appointment (mirrors
+  <span class="mono">sp_CheckInAppointment</span> / <span class="mono">sp_StartAppointmentService</span> /
+  <span class="mono">sp_CheckOutAppointment</span>), which feed the average wait-time KPI
+  under Reports &amp; KPIs.
+</div>
+{% endblock %}

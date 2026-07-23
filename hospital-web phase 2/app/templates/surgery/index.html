@@ -1,0 +1,88 @@
+{% extends "shared/base.html" %}
+{% block title %}Surgery & OR{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Phase 2 · §4 Resource Optimization</p>
+    <h1>Surgery &amp; Operating Rooms</h1>
+    <p class="page-sub">Mirrors vw_OperatingRoomStatus — OR status flips Free ↔ Occupied automatically as surgeries start/end (trg_surgeryrecord_or_status).</p>
+  </div>
+  <a href="{{ url_for('surgery.schedule') }}" class="btn">+ Schedule surgery</a>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Operating Room Board</h2>
+    <div class="legend">
+      <span><i class="dot dot-good"></i>Free</span>
+      <span><i class="dot dot-critical"></i>Occupied</span>
+      <span><i class="dot dot-warn"></i>Under maintenance</span>
+    </div>
+  </div>
+  {% if board %}
+  <div class="room-grid">
+    {% for cell in board %}
+    <div class="room-cell status-{{ (cell.room.status or 'free')|lower|replace(' ', '') }}">
+      <span class="room-cell-title">OR {{ cell.room.roomNumber or cell.room.id }}</span>
+      <span class="room-cell-sub">{{ cell.room.department.name if cell.room.department else '—' }}</span>
+      <span class="tag {{ 'tag-critical' if cell.room.status == 'Occupied' else ('tag-acknowledged' if cell.room.status == 'UnderMaintenance' else 'tag-resolved') }}">{{ cell.room.status or '—' }}</span>
+      {% if cell.surgery %}
+      <span class="room-cell-sub mono">{{ cell.surgery.procedureName or 'in progress' }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><p>No operating rooms registered yet.</p></div>
+  {% endif %}
+</div>
+
+<div class="toolbar">
+  <a href="{{ url_for('surgery.index', status='upcoming') }}" class="btn btn-sm {{ 'btn' if status_filter == 'upcoming' else 'btn-ghost' }}">Scheduled &amp; in progress</a>
+  <a href="{{ url_for('surgery.index', status='all') }}" class="btn btn-sm {{ 'btn' if status_filter == 'all' else 'btn-ghost' }}">All history</a>
+</div>
+
+<div class="panel">
+  {% if surgeries %}
+  <table class="data-table">
+    <thead>
+      <tr><th>ID</th><th>Patient</th><th>Procedure</th><th>OR</th><th>Surgeon</th><th>Scheduled start</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in surgeries %}
+      <tr>
+        <td class="mono">#{{ s.id }}</td>
+        <td>{{ s.patient.name if s.patient else '—' }}</td>
+        <td>{{ s.procedureName or '—' }}</td>
+        <td class="mono">{{ s.operating_room.roomNumber if s.operating_room else '—' }}</td>
+        <td>{{ s.surgeon.employee.name if s.surgeon and s.surgeon.employee else '—' }}</td>
+        <td class="mono">{{ s.scheduledStart.strftime('%Y-%m-%d %H:%M') if s.scheduledStart else '—' }}</td>
+        <td>
+          <span class="tag {{ 'tag-resolved' if s.status == 'Completed' else ('tag-critical' if s.status == 'InProgress' else ('tag-unreviewed' if s.status == 'Cancelled' else '')) }}">{{ s.status or '—' }}</span>
+        </td>
+        <td>
+          {% if s.status == 'Scheduled' %}
+          <form method="post" action="{{ url_for('surgery.start', surgery_id=s.id) }}" style="display:inline">
+            <button class="btn btn-sm" type="submit">Start</button>
+          </form>
+          <form method="post" action="{{ url_for('surgery.cancel', surgery_id=s.id) }}" style="display:inline">
+            <button class="btn btn-ghost btn-sm" type="submit">Cancel</button>
+          </form>
+          {% elif s.status == 'InProgress' %}
+          <form method="post" action="{{ url_for('surgery.complete', surgery_id=s.id) }}" style="display:inline">
+            <button class="btn btn-sm" type="submit">Complete</button>
+          </form>
+          {% elif s.duration_minutes is not none %}
+          <span class="mono" style="color:var(--text-dim);font-size:12px">{{ s.duration_minutes }}m</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No surgeries to show.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

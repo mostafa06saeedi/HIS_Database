@@ -1,0 +1,160 @@
+{% extends "shared/base.html" %}
+{% block title %}Reports & KPIs{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Phase 2 · §1 §3 §4 §6 Analytics &amp; Management Reporting</p>
+    <h1>Reports &amp; KPIs</h1>
+    <p class="page-sub">Turning operational data into managerial and clinical insight — disease frequency, treatment effectiveness, service-quality KPIs, and resource utilization.</p>
+  </div>
+  <form method="post" action="{{ url_for('reports.refresh_daily_stats') }}">
+    <button class="btn btn-ghost" type="submit">↻ Refresh today's snapshot</button>
+  </form>
+</div>
+
+<div class="panel">
+  <p class="section-title">Department KPIs — readmission rate, length of stay, wait time</p>
+  {% if department_kpis %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Department</th><th>Admissions</th><th>30-day readmissions</th><th>Readmission rate</th><th>Avg length of stay</th><th>Avg wait time</th></tr>
+    </thead>
+    <tbody>
+      {% for row in department_kpis %}
+      <tr>
+        <td>{{ row.department }}</td>
+        <td class="mono">{{ row.totalAdmissions }}</td>
+        <td class="mono">{{ row.readmissions30Day }}</td>
+        <td class="mono {{ 'status-critical' if row.readmissionRatePercent and row.readmissionRatePercent > 15 else '' }}">
+          {{ row.readmissionRatePercent ~ '%' if row.readmissionRatePercent is not none else '—' }}
+        </td>
+        <td class="mono">{{ row.avgLengthOfStayDays ~ ' d' if row.avgLengthOfStayDays is not none else '—' }}</td>
+        <td class="mono">{{ row.avgWaitMinutes ~ ' m' if row.avgWaitMinutes is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>Not enough discharged admissions / checked-in appointments yet to compute KPIs.</p></div>
+  {% endif %}
+</div>
+
+<div class="split">
+  <div class="panel">
+    <p class="section-title">Disease frequency</p>
+    {% if disease_frequency %}
+    <ul class="alert-feed">
+      {% for row in disease_frequency %}
+      <li class="alert-row">
+        <div class="alert-row-body">
+          <span class="alert-row-title">{{ row.name }}</span>
+          <div class="bar-track" style="margin-top:5px">
+            <div class="bar-fill" style="width: {{ (100.0 * row.count / disease_frequency[0].count) if disease_frequency[0].count else 0 }}%"></div>
+          </div>
+        </div>
+        <span class="tag mono">{{ row.count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state"><p>No diagnoses recorded yet.</p></div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <p class="section-title">Busiest departments (workload)</p>
+    {% if busiest_departments %}
+    <table class="data-table">
+      <thead><tr><th>Department</th><th>Admissions</th><th>Appointments</th><th>Surgeries</th></tr></thead>
+      <tbody>
+        {% for row in busiest_departments %}
+        <tr>
+          <td>{{ row.department }}</td>
+          <td class="mono">{{ row.totalAdmissions }}</td>
+          <td class="mono">{{ row.totalAppointments }}</td>
+          <td class="mono">{{ row.totalSurgeries }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><p>No departments registered yet.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <p class="section-title">Treatment effectiveness by disease</p>
+  {% if treatment_effectiveness %}
+  <table class="data-table">
+    <thead><tr><th>Disease</th><th>Outcome</th><th>Cases</th><th>% of cases</th></tr></thead>
+    <tbody>
+      {% for row in treatment_effectiveness %}
+      <tr>
+        <td>{{ row.disease }}</td>
+        <td>
+          <span class="tag {{ 'tag-resolved' if row.status in ['Recovered','Improved'] else ('tag-critical' if row.status in ['Worsened','Deceased','Relapsed'] else 'tag-acknowledged') }}">{{ row.status }}</span>
+        </td>
+        <td class="mono">{{ row.count }}</td>
+        <td class="mono">{{ row.percent }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No treatment outcomes recorded yet.</p>
+    <p class="empty-sub">Record one from a patient's diagnosis list to see effectiveness trends here.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <p class="section-title">Drug consumption (dispensed prescriptions)</p>
+  {% if drug_consumption %}
+  <table class="data-table">
+    <thead><tr><th>Drug</th><th>Total quantity dispensed</th><th>Distinct patients</th></tr></thead>
+    <tbody>
+      {% for row in drug_consumption %}
+      <tr>
+        <td>{{ row.drug }}</td>
+        <td class="mono">{{ row.totalQuantityDispensed }}</td>
+        <td class="mono">{{ row.distinctPatients }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No dispensed prescriptions yet.</p></div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <p class="section-title">Today's department snapshot (dailydepartmentstats)</p>
+  {% if daily_snapshot %}
+  <table class="data-table">
+    <thead><tr><th>Department</th><th>Beds</th><th>Occupied</th><th>Occupancy</th><th>New admissions</th><th>Discharges</th><th>Appointments</th><th>Avg wait</th></tr></thead>
+    <tbody>
+      {% for s in daily_snapshot %}
+      <tr>
+        <td>{{ s.department.name if s.department else '—' }}</td>
+        <td class="mono">{{ s.totalBeds }}</td>
+        <td class="mono">{{ s.occupiedBeds }}</td>
+        <td class="mono">{{ s.occupancyPercent ~ '%' if s.occupancyPercent is not none else '—' }}</td>
+        <td class="mono">{{ s.newAdmissions }}</td>
+        <td class="mono">{{ s.discharges }}</td>
+        <td class="mono">{{ s.appointmentsCount }}</td>
+        <td class="mono">{{ s.avgWaitMinutes ~ ' m' if s.avgWaitMinutes is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No snapshot for today yet.</p>
+    <p class="empty-sub">Click "Refresh today's snapshot" above — mirrors sp_RefreshDailyDepartmentStats, the pre-computed aggregated table for fast dashboard reads.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

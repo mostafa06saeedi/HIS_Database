@@ -1,0 +1,68 @@
+{% extends "shared/base.html" %}
+{% block title %}Pharmacy{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Module 6 · Pharmacy & Electronic Prescriptions</p>
+    <h1>Prescriptions</h1>
+    <p class="page-sub">Electronic prescriptions issued by physicians, sent directly to the pharmacy.</p>
+  </div>
+  <a href="{{ url_for('safety.index') }}" class="btn {{ 'btn-danger' if pending_safety_alert_count > 0 else 'btn-ghost' }}">
+    {{ pending_safety_alert_count }} pending safety alert{{ 's' if pending_safety_alert_count != 1 else '' }} →
+  </a>
+</div>
+
+<div class="panel">
+  {% if rows %}
+  <table class="data-table">
+    <thead>
+      <tr>{% for key, label in columns %}<th>{{ label }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        {% for key, label in columns %}
+        <td class="{{ 'mono' if row.get('_mono_' + key) else '' }}">{{ row.get(key, '—') }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No prescriptions yet.</p></div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <p class="section-title">Known drug interactions</p>
+  {% if interactions %}
+  <table class="data-table">
+    <thead><tr><th>Drug A</th><th>Drug B</th><th>Severity</th><th>Description</th></tr></thead>
+    <tbody>
+      {% for i in interactions %}
+      <tr>
+        <td>{{ i.drug_a.name if i.drug_a else '—' }}</td>
+        <td>{{ i.drug_b.name if i.drug_b else '—' }}</td>
+        <td>
+          <span class="dot dot-{{ 'critical' if i.severity|lower == 'severe' else ('warn' if i.severity|lower == 'moderate' else 'good') }}"></span>
+          {{ i.severity }}
+        </td>
+        <td>{{ i.description or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><p>No interactions on file.</p></div>
+  {% endif %}
+</div>
+
+<div class="build-note">
+  <strong>Phase 2 —</strong> every new prescription item is now checked live against
+  the patient's other active prescriptions and recorded allergies
+  (<span class="mono">trg_prescriptionitem_safety_check</span>); Severe findings
+  block the insert, Minor/Moderate findings land in <span class="mono">Safety Alerts</span>
+  for review.
+</div>
+{% endblock %}

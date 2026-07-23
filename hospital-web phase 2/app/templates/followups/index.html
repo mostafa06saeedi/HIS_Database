@@ -1,0 +1,48 @@
+{% extends "shared/base.html" %}
+{% block title %}Follow-Ups{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">Phase 2 · §2 Patient Follow-Up &amp; Treatment Tracking</p>
+    <h1>Follow-Ups</h1>
+    <p class="page-sub">Post-visit / post-treatment monitoring — symptoms, progress, and treatment-plan changes over time.</p>
+  </div>
+  <a href="{{ url_for('followups.create') }}" class="btn">+ Record follow-up</a>
+</div>
+
+<div class="toolbar">
+  <a href="{{ url_for('followups.index', scope='upcoming') }}" class="btn btn-sm {{ 'btn' if scope == 'upcoming' else 'btn-ghost' }}">Upcoming</a>
+  <a href="{{ url_for('followups.index', scope='all') }}" class="btn btn-sm {{ 'btn' if scope == 'all' else 'btn-ghost' }}">All history</a>
+</div>
+
+<div class="panel">
+  {% if followups %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Date</th><th>Patient</th><th>Doctor</th><th>Condition</th><th>Progress</th><th>Plan changed</th><th>Next follow-up</th></tr>
+    </thead>
+    <tbody>
+      {% for f in followups %}
+      <tr onclick="window.location='{{ url_for('patients.detail', national_id=f.patientID) }}'" style="cursor:pointer">
+        <td class="mono">{{ f.followUpDate or '—' }}</td>
+        <td>{{ f.patient.name if f.patient else f.patientID }}</td>
+        <td>{{ f.employee.name if f.employee else '—' }}</td>
+        <td>{{ f.diagnosis.icd.name if f.diagnosis and f.diagnosis.icd else '—' }}</td>
+        <td>
+          <span class="tag {{ 'tag-resolved' if f.progressStatus == 'Improving' else ('tag-critical' if f.progressStatus == 'Worsening' else 'tag-acknowledged') }}">{{ f.progressStatus or '—' }}</span>
+        </td>
+        <td>{{ 'Yes' if f.treatmentChanged else 'No' }}</td>
+        <td class="mono">{{ f.nextFollowUpDate or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>No follow-ups to show.</p>
+    <p class="empty-sub">Follow-ups can also be recorded directly from a patient's detail page.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
